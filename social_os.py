@@ -4,6 +4,7 @@ try:
  import gspread
  from google.oauth2.service_account import Credentials
 except ImportError:gspread=None
+from relationships import stage as relationship_stage
 SHEET=os.getenv('SOCIAL_MEMORY_SHEET_ID','1yIwJqlmgRbp1_o4MFCLHMSOOgaE3DYMd31eF43dF9bs')
 TABS={
 'Reddit Communities':['Updated','Subreddit','Stage','Observations','Accepted Actions','Removals','Mod Warning','Banned','Rules Summary','Notes'],
@@ -72,7 +73,12 @@ def _age(s):
 def fatigue(author='',subreddit='',topic='',thread=''):
  data=interactions();ages=[]
  for r in data:
-  if author and str(r.get('Author','')).lower()==author.lower():ages.append(_age(r.get('At')))
+  matched=False
+  if author and str(r.get('Author','')).lower()==author.lower():matched=True
+  if subreddit and str(r.get('Subreddit','')).lower()==subreddit.lower():matched=True
+  if topic and str(r.get('Topic','')).lower()==topic.lower():matched=True
+  if thread and str(r.get('Thing ID',''))==thread:matched=True
+  if matched:ages.append(_age(r.get('At')))
  n24=sum(x<=1 for x in ages);n7=sum(x<=7 for x in ages);n30=sum(x<=30 for x in ages);n90=sum(x<=90 for x in ages)
  return max(n24/2,n7/4,n30/8,n90/16),f'24h={n24};7d={n7};30d={n30};90d={n90}'
 def community_profile(sub):
@@ -84,7 +90,13 @@ def log_interaction(sub,author,thing,action,reason,dry,topic='',fp=''):
  row=[now(),sub,author,thing,action,reason,str(dry),topic,fp];append('Reddit Interactions',row)
  if _IR is not None:_IR.append(dict(zip(TABS['Reddit Interactions'],row)))
  append('Social Entity Graph',[now(),author.lower(),'Reddit',author,'person/account',action,reason])
-def replay(thing,author,topic,decision,reason,dry,confidence=''):append('Social Decision Replay',[now(),'Reddit',thing,author,topic,decision,reason,confidence,str(dry),'1.0','1.0'])
+def log_conversation(sub,author,thing,direction,text,reply,state):append('Reddit Conversations',[now(),sub,author,thing,direction,text,reply,state])
+def update_relationship(author,topic='',reciprocal=False):
+ rec=[r for r in rows('Reddit Relationships') if str(r.get('Author','')).lower()==author.lower()]
+ latest=rec[-1] if rec else {};interactions_n=int(latest.get('Interactions',0) or 0)+1;recip=int(latest.get('Reciprocal',0) or 0)+(1 if reciprocal else 0);topics=[x.strip() for x in str(latest.get('Topics','')).split(',') if x.strip()]
+ if topic and topic not in topics:topics.append(topic)
+ st=relationship_stage(interactions_n,recip,0);append('Reddit Relationships',[now(),author,st,interactions_n,recip,now(),','.join(topics[-20:])]);return st
+def replay(thing,author,topic,decision,reason,dry,confidence=''):append('Social Decision Replay',[now(),'Reddit',thing,author,topic,decision,reason,confidence,str(dry),'1.1','1.1'])
 def research_hold(thing,claim,reason):append('Social Research Queue',[now(),'Reddit',thing,claim,reason,'PENDING'])
 def lineage(cid,fp,topic,parent='',text=''):append('Social Content Lineage',[now(),'Reddit',cid,fp,topic,parent,text])
 def recent_texts(limit=400):return [str(r.get('Text','')) for r in rows('Social Content Lineage')[-limit:] if r.get('Text')]
