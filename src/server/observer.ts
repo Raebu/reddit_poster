@@ -63,7 +63,11 @@ export async function runObserver() {
         let score = 0
         let draft: string | undefined
 
-        if (state.mode === 'SHADOW' || state.mode === 'CANARY' || state.mode === 'LIVE') {
+        if (
+          state.mode === 'SHADOW' ||
+          state.mode === 'CANARY' ||
+          state.mode === 'LIVE'
+        ) {
           const shadow = shadowDecision({
             text,
             subreddit: subredditName,
