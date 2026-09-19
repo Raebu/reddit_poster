@@ -16,10 +16,14 @@ export async function enqueueUserAction(
     queuedAt: new Date().toISOString(),
     status: 'PENDING',
   }
-  await redis.set(`social-os:user-queue:${envelope.idempotencyKey}`, JSON.stringify(item))
+  await redis.set(
+    `social-os:user-queue:${envelope.idempotencyKey}`,
+    JSON.stringify(item),
+  )
   const raw = await redis.get(INDEX)
   const index = raw ? (JSON.parse(raw) as string[]) : []
-  if (!index.includes(envelope.idempotencyKey)) index.unshift(envelope.idempotencyKey)
+  if (!index.includes(envelope.idempotencyKey))
+    index.unshift(envelope.idempotencyKey)
   await redis.set(INDEX, JSON.stringify(index.slice(0, 100)))
   return item
 }
