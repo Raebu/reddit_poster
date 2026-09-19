@@ -29,7 +29,10 @@ export async function runObserver() {
         decisions += 1
         let decision = 'NO_ACTION'
         let reason = 'observe mode'
-        if (isPolitical(text)) reason = 'political restraint'
+        if (isPolitical(text)) {
+          reason = 'political restraint'
+          noActions += 1
+        }
         else if (isCurrentClaim(text)) {
           decision = 'HOLD'
           reason = 'current claim requires verified research'
