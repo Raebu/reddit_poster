@@ -8,6 +8,15 @@
     }
   },
   "server": {},
+  "settings": {
+    "global": {
+      "openai-api-key": {
+        "type": "string",
+        "label": "OpenAI API key",
+        "isSecret": true
+      }
+    }
+  },
   "permissions": {
     "http": {
       "enable": true,
