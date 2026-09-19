@@ -6,6 +6,7 @@ import {governanceGate} from './governance.ts'
 import {understandCandidate} from './intelligence.ts'
 import {verifyEvidence} from './research.ts'
 import {voiceBrief} from './voice.ts'
+import {mediaPlan} from './media.ts'
 
 test('governance fails closed in shadow', () => {
   const g = governanceGate({
@@ -116,4 +117,17 @@ test('candidate intelligence applies fatigue', () => {
 
 test('voice brief encodes non-invention rule', () => {
   assert.match(voiceBrief('technology_ai'), /Never invent experience or facts/)
+})
+
+import {mediaPlan} from './media.ts'
+
+test('media planner only enables image generation for posts', () => {
+  assert.equal(mediaPlan({action: 'COMMENT', imagePrompt: 'diagram'}).needed, false)
+  const plan = mediaPlan({
+    action: 'POST',
+    imagePrompt: 'A clean systems architecture diagram',
+    body: 'Architecture overview',
+  })
+  assert.equal(plan.needed, true)
+  assert.match(plan.prompt ?? '', /architecture/)
 })
