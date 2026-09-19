@@ -1,11 +1,7 @@
 import {reddit, redis} from '@devvit/web/server'
 import {getSocialOsState, setSocialOsState} from './db.ts'
-import {
-  communityStage,
-  isCurrentClaim,
-  isPolitical,
-  topic,
-} from './social/core.ts'
+import {communityStage, isCurrentClaim, isPolitical, topic} from './social/core.ts'
+import {shadowDecision} from './social/shadow.ts'
 
 const SUBREDDITS = [
   'technology',
@@ -27,6 +23,8 @@ export async function runObserver() {
   let decisions = 0
   let holds = 0
   let noActions = 0
+  let shadowProposals = 0
+  let shadowComments = 0
 
   for (const subredditName of SUBREDDITS) {
     try {
@@ -53,9 +51,29 @@ export async function runObserver() {
         const text = `${post.title}\n${post.body ?? ''}`.trim()
         if (text.length < 80) continue
         decisions += 1
+
         let decision = 'NO_ACTION'
         let reason = 'observe mode'
-        if (isPolitical(text)) {
+        let score = 0
+        let draft: string | undefined
+
+        if (state.mode === 'SHADOW') {
+          const shadow = shadowDecision({
+            text,
+            subreddit: subredditName,
+            community: profile,
+          })
+          decision = shadow.action
+          reason = shadow.reason
+          score = shadow.score
+          draft = shadow.draft
+          if (decision === 'HOLD') holds += 1
+          else if (decision === 'NO_ACTION') noActions += 1
+          else {
+            shadowProposals += 1
+            if (decision === 'COMMENT') shadowComments += 1
+          }
+        } else if (isPolitical(text)) {
           reason = 'political restraint'
           noActions += 1
         } else if (isCurrentClaim(text)) {
@@ -63,19 +81,32 @@ export async function runObserver() {
           reason = 'current claim requires verified research'
           holds += 1
         } else noActions += 1
+
+        const record = {
+          at: new Date().toISOString(),
+          id: post.id,
+          subreddit: subredditName,
+          author: post.authorName,
+          topic: topic(text, subredditName),
+          mode: state.mode,
+          decision,
+          reason,
+          score,
+          draft,
+          executed: false,
+        }
         await redis.set(
           `social-os:decision:${post.id}`,
-          JSON.stringify({
-            at: new Date().toISOString(),
-            id: post.id,
-            subreddit: subredditName,
-            author: post.authorName,
-            topic: topic(text, subredditName),
-            decision,
-            reason,
-          }),
+          JSON.stringify(record),
           {expiration: new Date(Date.now() + 30 * 86400000)},
         )
+        if (state.mode === 'SHADOW' && decision !== 'NO_ACTION') {
+          await redis.set(
+            `social-os:shadow:${post.id}`,
+            JSON.stringify(record),
+            {expiration: new Date(Date.now() + 30 * 86400000)},
+          )
+        }
       }
     } catch (error) {
       console.error('observer subreddit failure', subredditName, error)
@@ -87,6 +118,8 @@ export async function runObserver() {
     decisions: state.decisions + decisions,
     holds: state.holds + holds,
     noActions: state.noActions + noActions,
+    shadowProposals: state.shadowProposals + shadowProposals,
+    shadowComments: state.shadowComments + shadowComments,
   }
   await setSocialOsState(next)
   return next
