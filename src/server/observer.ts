@@ -30,6 +30,7 @@ export async function runObserver() {
   let noActions = 0
   let shadowProposals = 0
   let shadowComments = 0
+  let failures = 0
 
   for (const subredditName of SUBREDDITS) {
     try {
@@ -62,7 +63,7 @@ export async function runObserver() {
         let score = 0
         let draft: string | undefined
 
-        if (state.mode === 'SHADOW') {
+        if (state.mode === 'SHADOW' || state.mode === 'CANARY' || state.mode === 'LIVE') {
           const shadow = shadowDecision({
             text,
             subreddit: subredditName,
@@ -105,7 +106,7 @@ export async function runObserver() {
           JSON.stringify(record),
           {expiration: new Date(Date.now() + 30 * 86400000)},
         )
-        if (state.mode === 'SHADOW' && decision !== 'NO_ACTION') {
+        if (state.mode !== 'OBSERVE' && decision !== 'NO_ACTION') {
           await redis.set(
             `social-os:shadow:${post.id}`,
             JSON.stringify(record),
@@ -114,6 +115,7 @@ export async function runObserver() {
         }
       }
     } catch (error) {
+      failures += 1
       console.error('observer subreddit failure', subredditName, error)
     }
   }
@@ -125,6 +127,8 @@ export async function runObserver() {
     noActions: state.noActions + noActions,
     shadowProposals: state.shadowProposals + shadowProposals,
     shadowComments: state.shadowComments + shadowComments,
+    failures: state.failures + failures,
+    lastRunAt: new Date().toISOString(),
   }
   await setSocialOsState(next)
   return next
