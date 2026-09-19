@@ -10,6 +10,9 @@ The target pipeline is:
 
 Devvit is the hosted runtime. The five-minute scheduler performs discovery and maintenance; Reddit event triggers feed post, comment, deletion and moderation events into the conversation/memory layer. Redis is operational state.
 
+The retained Python runner is parity/shadow tooling only and is permanently
+read-only. It cannot post, comment, vote or save Reddit content.
+
 ## Autonomy modes
 
 - **OBSERVE** — collect intelligence; no proposed or executed engagement.
@@ -22,6 +25,10 @@ LIVE never means mandatory engagement. `NO_ACTION` is expected to remain the mos
 ## Identity boundary
 
 APP actions can be routed for autonomous execution where Reddit permits them. USER actions are always routed to an explicit approval queue. The system must never automate personal-account posting, commenting or subscribing, and it must not implement voting or user-following.
+
+Devvit actions are installation-scoped: an installation may only mutate the
+subreddit in whose context it is running. Deploying the app does not grant it
+permission to act in unrelated communities.
 
 ## Production modules
 
