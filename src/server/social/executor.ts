@@ -1,8 +1,8 @@
 import {reddit, redis} from '@devvit/web/server'
 import {getSocialOsState, setSocialOsState} from '../db.ts'
 import type {ActionEnvelope} from './action.ts'
-import {governanceGate} from './governance.ts'
 import {gateGenerated} from './core.ts'
+import {governanceGate} from './governance.ts'
 
 function bucket(now = new Date()): {day: string; hour: string} {
   return {
@@ -26,7 +26,8 @@ export async function executeAppAction(
 ): Promise<{executed: boolean; reason: string; redditId?: string}> {
   const state = await getSocialOsState()
   const idem = `social-os:executed:${envelope.idempotencyKey}`
-  if (await redis.get(idem)) return {executed: false, reason: 'idempotent replay'}
+  if (await redis.get(idem))
+    return {executed: false, reason: 'idempotent replay'}
 
   const b = bucket()
   const hourKey = `social-os:budget:hour:${b.hour}`
@@ -46,7 +47,10 @@ export async function executeAppAction(
   })
   if (!gate.allow) return {executed: false, reason: gate.reason}
 
-  const [safe, reason] = gateGenerated(envelope.body, options.researchVerified ? 'verified' : '')
+  const [safe, reason] = gateGenerated(
+    envelope.body,
+    options.researchVerified ? 'verified' : '',
+  )
   if (!safe) return {executed: false, reason}
 
   let redditId = ''
