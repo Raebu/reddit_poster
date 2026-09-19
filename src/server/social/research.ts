@@ -18,6 +18,8 @@ export function verifyEvidence(evidence: Evidence[]): ResearchResult {
   return {
     verified,
     evidence: usable,
-    reason: verified ? 'evidence threshold met' : 'insufficient independent evidence',
+    reason: verified
+      ? 'evidence threshold met'
+      : 'insufficient independent evidence',
   }
 }
