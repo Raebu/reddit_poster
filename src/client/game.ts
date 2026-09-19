@@ -18,18 +18,28 @@ type Status = {
   lastActionAt?: string
 }
 
+type UserQueueItem = {
+  idempotencyKey: string
+  action: string
+  subreddit: string
+  body: string
+  title?: string
+  queuedAt: string
+  status: string
+}
+
 const root = document.body
 
 root.innerHTML = `
   <main style="
     font-family: system-ui, sans-serif;
-    max-width: 720px;
+    max-width: 820px;
     margin: 40px auto;
     padding: 28px;
     line-height: 1.5;
   ">
     <h1 style="margin-bottom:4px">Raeburn Social OS</h1>
-    <p style="margin-top:0;opacity:.7">Reddit intelligence console</p>
+    <p style="margin-top:0;opacity:.7">Reddit production autonomy console</p>
 
     <div id="status">Loading…</div>
 
@@ -42,51 +52,95 @@ root.innerHTML = `
       <button data-mode="CANARY">Canary</button>
       <button data-mode="LIVE">Live</button>
     </div>
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+      <button id="enable">Enable</button>
+      <button id="disable">Kill switch</button>
+      <button id="refresh">Refresh</button>
+    </div>
+
+    <hr style="margin:24px 0">
+
+    <strong>USER action queue</strong>
+    <div id="queue" style="margin-top:12px">Loading…</div>
   </main>
 `
 
 async function load(): Promise<void> {
   const state = await request<Status>('/api/social-os/status')
+  const queue = await request<UserQueueItem[]>('/api/social-os/user-queue')
 
   const status = document.querySelector('#status')
-  if (!status) return
+  if (status) {
+    status.innerHTML = `
+      <p><strong>Status:</strong> ${state.enabled ? 'Enabled' : 'Disabled'}</p>
+      <p><strong>Mode:</strong> ${state.mode}</p>
+      <p>
+        Decisions: ${state.decisions} ·
+        Actions: ${state.actions} ·
+        Holds: ${state.holds} ·
+        No action: ${state.noActions}
+      </p>
+      <p>
+        Shadow proposals: ${state.shadowProposals} ·
+        Shadow comments: ${state.shadowComments}
+      </p>
+      <p>
+        Canary actions: ${state.canaryActions} ·
+        Live actions: ${state.liveActions} ·
+        Failures: ${state.failures}
+      </p>
+      <p><strong>Last hosted run:</strong> ${state.lastRunAt ?? 'Not yet'}</p>
+      <p><strong>Last action:</strong> ${state.lastActionAt ?? 'Not yet'}</p>
+    `
+  }
 
-  status.innerHTML = `
-    <p><strong>Status:</strong> ${state.enabled ? 'Enabled' : 'Disabled'}</p>
-    <p><strong>Mode:</strong> ${state.mode}</p>
-    <p>
-      Decisions: ${state.decisions} ·
-      Actions: ${state.actions} ·
-      Holds: ${state.holds} ·
-      No action: ${state.noActions}
-    </p>
-    <p>
-      Shadow proposals: ${state.shadowProposals} ·
-      Shadow comments: ${state.shadowComments}
-    </p>
-    <p>
-      Canary actions: ${state.canaryActions} ·
-      Live actions: ${state.liveActions} ·
-      Failures: ${state.failures}
-    </p>
-    <p><strong>Last hosted run:</strong> ${state.lastRunAt ?? 'Not yet'}</p>
-  `
+  const queueNode = document.querySelector('#queue')
+  if (queueNode) {
+    queueNode.innerHTML = queue.length
+      ? queue
+          .map(
+            item => `
+            <article style="border:1px solid #ddd;padding:12px;margin:8px 0;border-radius:8px">
+              <strong>${item.action}</strong> in r/${item.subreddit}
+              <p style="white-space:pre-wrap">${item.title ? `${item.title}\n\n` : ''}${item.body}</p>
+              <small>${item.status} · ${item.queuedAt}</small>
+            </article>
+          `,
+          )
+          .join('')
+      : '<p>No USER actions queued.</p>'
+  }
 }
 
-for (const button of document.querySelectorAll<HTMLButtonElement>(
-  '[data-mode]',
-)) {
+for (const button of document.querySelectorAll<HTMLButtonElement>('[data-mode]')) {
   button.addEventListener('click', async () => {
     const mode = button.dataset.mode
     if (!mode) return
-
     await request('/api/social-os/mode', {
       method: 'POST',
       body: JSON.stringify({mode}),
     })
-
     await load()
   })
 }
+
+document.querySelector('#enable')?.addEventListener('click', async () => {
+  await request('/api/social-os/enabled', {
+    method: 'POST',
+    body: JSON.stringify({enabled: true}),
+  })
+  await load()
+})
+
+document.querySelector('#disable')?.addEventListener('click', async () => {
+  await request('/api/social-os/enabled', {
+    method: 'POST',
+    body: JSON.stringify({enabled: false}),
+  })
+  await load()
+})
+
+document.querySelector('#refresh')?.addEventListener('click', () => void load())
 
 void load()
