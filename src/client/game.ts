@@ -9,6 +9,8 @@ type Status = {
   actions: number
   holds: number
   noActions: number
+  shadowProposals: number
+  shadowComments: number
 }
 
 const root = document.body
@@ -52,6 +54,10 @@ async function load(): Promise<void> {
       Actions: ${state.actions} ·
       Holds: ${state.holds} ·
       No action: ${state.noActions}
+    </p>
+    <p>
+      Shadow proposals: ${state.shadowProposals} ·
+      Shadow comments: ${state.shadowComments}
     </p>
   `
 }
