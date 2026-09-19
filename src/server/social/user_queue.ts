@@ -1,4 +1,4 @@
-import {redis} from '@devvit/web/server'
+import {reddit, redis} from '@devvit/web/server'
 import type {ActionEnvelope} from './action.ts'
 
 export type UserQueueItem = ActionEnvelope & {
@@ -37,4 +37,46 @@ export async function listUserQueue(): Promise<UserQueueItem[]> {
     if (item) out.push(JSON.parse(item) as UserQueueItem)
   }
   return out
+}
+
+
+export async function approveUserAction(
+  idempotencyKey: string,
+): Promise<UserQueueItem> {
+  const key = `social-os:user-queue:${idempotencyKey}`
+  const raw = await redis.get(key)
+  if (!raw) throw new Error('queued action not found')
+  const item = JSON.parse(raw) as UserQueueItem
+  if (item.status !== 'PENDING') return item
+
+  if (item.action === 'COMMENT' && item.targetId) {
+    await reddit.submitComment({
+      id: item.targetId as `t1_${string}` | `t3_${string}`,
+      text: item.body,
+      runAs: 'USER',
+    })
+  } else if (item.action === 'POST' && item.title) {
+    await reddit.submitPost({
+      subredditName: item.subreddit,
+      title: item.title,
+      text: item.body,
+      runAs: 'USER',
+    })
+  } else throw new Error('invalid queued USER action')
+
+  const approved = {...item, status: 'APPROVED' as const}
+  await redis.set(key, JSON.stringify(approved))
+  return approved
+}
+
+export async function dismissUserAction(
+  idempotencyKey: string,
+): Promise<UserQueueItem> {
+  const key = `social-os:user-queue:${idempotencyKey}`
+  const raw = await redis.get(key)
+  if (!raw) throw new Error('queued action not found')
+  const item = JSON.parse(raw) as UserQueueItem
+  const dismissed = {...item, status: 'DISMISSED' as const}
+  await redis.set(key, JSON.stringify(dismissed))
+  return dismissed
 }
