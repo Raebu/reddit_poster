@@ -1,6 +1,6 @@
 import {canParticipate, isCurrentClaim, isPolitical, topic} from './core.ts'
 
-export type ShadowAction = 'COMMENT' | 'SAVE' | 'UPVOTE' | 'NO_ACTION' | 'HOLD'
+export type ShadowAction = 'COMMENT' | 'POST' | 'NO_ACTION' | 'HOLD'
 export type ShadowInput = {
   text: string
   subreddit: string
@@ -76,15 +76,8 @@ export function shadowDecision(input: ShadowInput): ShadowDecision {
     }
   if (score >= 4)
     return {
-      action: 'SAVE',
-      reason: 'worth revisiting; insufficient comment value',
-      score,
-      topic: classifiedTopic,
-    }
-  if (score >= 3)
-    return {
-      action: 'UPVOTE',
-      reason: 'relevant signal; no comment needed',
+      action: 'NO_ACTION',
+      reason: 'relevant but below autonomous contribution threshold',
       score,
       topic: classifiedTopic,
     }
