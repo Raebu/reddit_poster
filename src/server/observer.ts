@@ -6,6 +6,10 @@ import {
   isPolitical,
   topic,
 } from './social/core.ts'
+import {executeAppAction} from './social/executor.ts'
+import {generateContent} from './social/llm.ts'
+import {mediaPlan} from './social/media.ts'
+import {recordRelationship} from './social/memory.ts'
 import {shadowDecision} from './social/shadow.ts'
 
 const SUBREDDITS = [
@@ -62,6 +66,8 @@ export async function runObserver() {
         let reason = 'observe mode'
         let score = 0
         let draft: string | undefined
+        let executed = false
+        let redditId: string | undefined
 
         if (
           state.mode === 'SHADOW' ||
@@ -77,6 +83,48 @@ export async function runObserver() {
           reason = shadow.reason
           score = shadow.score
           draft = shadow.draft
+
+          if (decision === 'COMMENT') {
+            const generated = await generateContent({
+              text,
+              subreddit: subredditName,
+              topic: shadow.topic,
+            })
+            if (generated.action === 'COMMENT' && generated.body) {
+              const media = mediaPlan(generated)
+              if (media.needed) {
+                reason = 'media planned but comment media unsupported'
+              }
+              const result = await executeAppAction(
+                {
+                  idempotencyKey: `comment:${post.id}`,
+                  action: 'COMMENT',
+                  targetId: post.id,
+                  subreddit: subredditName,
+                  body: generated.body,
+                  identity: 'APP',
+                  generatedAt: new Date().toISOString(),
+                },
+                {
+                  fatigue: 0,
+                  moderationRisk: Boolean(profile.banned || profile.modWarning),
+                  researchRequired: isCurrentClaim(text),
+                  researchVerified: !isCurrentClaim(text),
+                },
+              )
+              executed = result.executed
+              redditId = result.redditId
+              reason = result.reason
+              if (executed) {
+                profile.acceptedActions += 1
+                await recordRelationship(post.authorName, {interactions: 1})
+              }
+            } else {
+              decision = generated.action
+              reason = generated.rationale
+            }
+          }
+
           if (decision === 'HOLD') holds += 1
           else if (decision === 'NO_ACTION') noActions += 1
           else {
@@ -103,7 +151,8 @@ export async function runObserver() {
           reason,
           score,
           draft,
-          executed: false,
+          executed,
+          redditId,
         }
         await redis.set(
           `social-os:decision:${post.id}`,
@@ -118,20 +167,25 @@ export async function runObserver() {
           )
         }
       }
+      await redis.set(
+        profileKey,
+        JSON.stringify({...profile, stage: communityStage(profile)}),
+      )
     } catch (error) {
       failures += 1
       console.error('observer subreddit failure', subredditName, error)
     }
   }
 
+  const current = await getSocialOsState()
   const next = {
-    ...state,
-    decisions: state.decisions + decisions,
-    holds: state.holds + holds,
-    noActions: state.noActions + noActions,
-    shadowProposals: state.shadowProposals + shadowProposals,
-    shadowComments: state.shadowComments + shadowComments,
-    failures: state.failures + failures,
+    ...current,
+    decisions: current.decisions + decisions,
+    holds: current.holds + holds,
+    noActions: current.noActions + noActions,
+    shadowProposals: current.shadowProposals + shadowProposals,
+    shadowComments: current.shadowComments + shadowComments,
+    failures: current.failures + failures,
     lastRunAt: new Date().toISOString(),
   }
   await setSocialOsState(next)
