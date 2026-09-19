@@ -9,7 +9,8 @@ import {
 import {executeAppAction} from './social/executor.ts'
 import {generateContent} from './social/llm.ts'
 import {mediaPlan} from './social/media.ts'
-import {recordRelationship} from './social/memory.ts'
+import {putConversation, recordRelationship} from './social/memory.ts'
+import {researchClaim} from './social/research.ts'
 import {shadowDecision} from './social/shadow.ts'
 
 const SUBREDDITS = [
@@ -85,10 +86,14 @@ export async function runObserver() {
           draft = shadow.draft
 
           if (decision === 'COMMENT') {
+            const research = isCurrentClaim(text)
+              ? await researchClaim(text)
+              : {verified: true, evidence: [], reason: 'research not required'}
             const generated = await generateContent({
               text,
               subreddit: subredditName,
               topic: shadow.topic,
+              evidence: research.evidence,
             })
             if (generated.action === 'COMMENT' && generated.body) {
               const media = mediaPlan(generated)
@@ -109,7 +114,7 @@ export async function runObserver() {
                   fatigue: 0,
                   moderationRisk: Boolean(profile.banned || profile.modWarning),
                   researchRequired: isCurrentClaim(text),
-                  researchVerified: !isCurrentClaim(text),
+                  researchVerified: research.verified,
                 },
               )
               executed = result.executed
@@ -118,6 +123,14 @@ export async function runObserver() {
               if (executed) {
                 profile.acceptedActions += 1
                 await recordRelationship(post.authorName, {interactions: 1})
+                await putConversation({
+                  threadId: post.id,
+                  subreddit: subredditName,
+                  state: 'ACTIVE',
+                  participants: [post.authorName],
+                  lastEventAt: new Date().toISOString(),
+                  ourLastActionId: redditId,
+                })
               }
             } else {
               decision = generated.action
