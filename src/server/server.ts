@@ -16,8 +16,10 @@ import {
 } from '../shared/api.ts'
 import {getSocialOsState, setSocialOsState} from './db.ts'
 import {runObserver} from './observer.ts'
-import {runOriginalPost} from './social/original.ts'
-import {conversationState, shouldContinue} from './social/conversation_engine.ts'
+import {
+  conversationState,
+  shouldContinue,
+} from './social/conversation_engine.ts'
 import {isCurrentClaim, isPolitical, topic} from './social/core.ts'
 import {executeAppAction} from './social/executor.ts'
 import {generateContent} from './social/llm.ts'
@@ -27,6 +29,7 @@ import {
   putConversation,
   recordRelationship,
 } from './social/memory.ts'
+import {runOriginalPost} from './social/original.ts'
 import {researchClaim} from './social/research.ts'
 import {
   approveUserAction,
