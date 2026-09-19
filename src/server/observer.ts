@@ -1,6 +1,11 @@
 import {reddit, redis} from '@devvit/web/server'
 import {getSocialOsState, setSocialOsState} from './db.ts'
-import {communityStage, isCurrentClaim, isPolitical, topic} from './social/core.ts'
+import {
+  communityStage,
+  isCurrentClaim,
+  isPolitical,
+  topic,
+} from './social/core.ts'
 import {shadowDecision} from './social/shadow.ts'
 
 const SUBREDDITS = [
