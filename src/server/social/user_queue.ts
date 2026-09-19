@@ -39,7 +39,6 @@ export async function listUserQueue(): Promise<UserQueueItem[]> {
   return out
 }
 
-
 export async function approveUserAction(
   idempotencyKey: string,
 ): Promise<UserQueueItem> {
