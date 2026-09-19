@@ -9,6 +9,8 @@ export type SocialOsStatusRsp = {
   actions: number
   holds: number
   noActions: number
+  shadowProposals: number
+  shadowComments: number
 }
 export type SetModeReq = {mode: SocialOsMode}
 export type Endpoint = (typeof Endpoint)[keyof typeof Endpoint]
