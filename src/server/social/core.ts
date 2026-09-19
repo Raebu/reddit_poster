@@ -56,9 +56,7 @@ export function communityStage(p: CommunityProfile) {
   return 'UNKNOWN'
 }
 export const canParticipate = (p: CommunityProfile) =>
-  ['UNDERSTOOD', 'PARTICIPATING', 'ESTABLISHED'].includes(
-    communityStage(p),
-  ) &&
+  ['UNDERSTOOD', 'PARTICIPATING', 'ESTABLISHED'].includes(communityStage(p)) &&
   !p.banned &&
   !p.modWarning
 export function topic(text: string, source = ''): Topic {
