@@ -215,6 +215,15 @@ export async function runObserver() {
       lastRunAt: new Date().toISOString(),
     }
     await setSocialOsState(next)
+    console.info('observer run complete', {
+      mode: next.mode,
+      decisions,
+      holds,
+      noActions,
+      proposals: shadowProposals,
+      actions: next.actions - current.actions,
+      failures,
+    })
     return next
   } finally {
     if ((await redis.get(lockKey)) === lockToken) await redis.del(lockKey)
