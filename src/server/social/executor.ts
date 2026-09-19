@@ -62,12 +62,33 @@ export async function executeAppAction(
     })
     redditId = comment.id
   } else if (envelope.action === 'POST' && envelope.title) {
-    const post = await reddit.submitPost({
-      subredditName: envelope.subreddit,
-      title: envelope.title,
-      text: envelope.body,
-      runAs: 'APP',
-    })
+    const post = envelope.mediaUrl
+      ? await reddit.submitPost({
+          subredditName: envelope.subreddit,
+          title: envelope.title,
+          richtext: {
+            document: [
+              {e: 'par', c: [{e: 'text', t: envelope.body}]},
+              {
+                e: 'par',
+                c: [
+                  {
+                    e: 'img',
+                    mediaUrl: envelope.mediaUrl,
+                    c: envelope.mediaAlt ?? 'Generated illustration',
+                  },
+                ],
+              },
+            ],
+          },
+          runAs: 'APP',
+        })
+      : await reddit.submitPost({
+          subredditName: envelope.subreddit,
+          title: envelope.title,
+          text: envelope.body,
+          runAs: 'APP',
+        })
     redditId = post.id
   } else return {executed: false, reason: 'invalid executable action'}
 
