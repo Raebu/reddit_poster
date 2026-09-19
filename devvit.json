@@ -3,8 +3,12 @@
   "name": "raeburn-social-os",
   "post": {
     "entrypoints": {
-      "default": {"entry": "splash.html"},
-      "game": {"entry": "game.html"}
+      "default": {
+        "entry": "splash.html"
+      },
+      "game": {
+        "entry": "game.html"
+      }
     }
   },
   "server": {},
@@ -20,13 +24,19 @@
   "permissions": {
     "http": {
       "enable": true,
-      "domains": ["api.openai.com"]
+      "domains": [
+        "api.openai.com"
+      ]
     },
     "media": true,
     "redis": true,
     "reddit": {
       "enable": true,
-      "asUser": ["SUBMIT_POST", "SUBMIT_COMMENT", "SUBSCRIBE_TO_SUBREDDIT"]
+      "asUser": [
+        "SUBMIT_POST",
+        "SUBMIT_COMMENT",
+        "SUBSCRIBE_TO_SUBREDDIT"
+      ]
     }
   },
   "menu": {
@@ -52,9 +62,17 @@
       "reddit-observer": {
         "endpoint": "/internal/scheduler/observe",
         "cron": "*/5 * * * *"
+      },
+      "original-post": {
+        "endpoint": "/internal/scheduler/original-post",
+        "cron": "0 10 * * 2,5"
       }
     }
   },
-  "scripts": {"dev": "npm run watch"},
-  "dev": {"subreddit": "raeburn_social_os_dev"}
+  "scripts": {
+    "dev": "npm run watch"
+  },
+  "dev": {
+    "subreddit": "raeburn_social_os_dev"
+  }
 }
