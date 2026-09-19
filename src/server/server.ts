@@ -28,7 +28,11 @@ import {
   recordRelationship,
 } from './social/memory.ts'
 import {researchClaim} from './social/research.ts'
-import {listUserQueue} from './social/user_queue.ts'
+import {
+  approveUserAction,
+  dismissUserAction,
+  listUserQueue,
+} from './social/user_queue.ts'
 
 type AnyRsp =
   | SocialOsStatusRsp
@@ -73,6 +77,16 @@ async function route(
       case Endpoint.UserQueue:
         rsp = await listUserQueue()
         break
+      case Endpoint.UserQueueApprove: {
+        const req = await readJson<{idempotencyKey: string}>(reqMsg)
+        rsp = await approveUserAction(req.idempotencyKey)
+        break
+      }
+      case Endpoint.UserQueueDismiss: {
+        const req = await readJson<{idempotencyKey: string}>(reqMsg)
+        rsp = await dismissUserAction(req.idempotencyKey)
+        break
+      }
       case Endpoint.OnMenuNewPost:
         rsp = await routeMenuNewPost()
         break
