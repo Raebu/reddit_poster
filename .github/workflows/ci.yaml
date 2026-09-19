@@ -1,11 +1,10 @@
-# https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-nodejs
 name: CI
 
 on:
   push:
-    branches: ['main']
+    branches: ['main', 'devvit-social-os']
   pull_request:
-    branches: ['main']
+    branches: ['main', 'devvit-social-os']
 
 jobs:
   test:
@@ -17,14 +16,10 @@ jobs:
         uses: actions/setup-node@v6.4.0
         with:
           node-version: 24.18.0
-      - name: Install Dependencies
-        run: npm install --no-fund
-      - parallel:
-          - name: Typecheck
-            run: npm run test:types
-          - name: Lint
-            run: npm run lint
-          - name: Unit Test
-            run: npm run test:unit
-          - name: Build
-            run: npm run build
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-fund
+      - name: TypeScript, lint, unit tests and build
+        run: npm test
+      - name: Python Social OS parity tests
+        run: python -m unittest -v test_reddit_os.py
