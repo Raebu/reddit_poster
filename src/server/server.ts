@@ -16,13 +16,17 @@ import {
 } from '../shared/api.ts'
 import {getSocialOsState, setSocialOsState} from './db.ts'
 import {runObserver} from './observer.ts'
-import {conversationState} from './social/conversation_engine.ts'
+import {conversationState, shouldContinue} from './social/conversation_engine.ts'
+import {isCurrentClaim, isPolitical, topic} from './social/core.ts'
+import {executeAppAction} from './social/executor.ts'
+import {generateContent} from './social/llm.ts'
 import {
   getConversation,
   purgeContent,
   putConversation,
   recordRelationship,
 } from './social/memory.ts'
+import {researchClaim} from './social/research.ts'
 import {listUserQueue} from './social/user_queue.ts'
 
 type AnyRsp =
@@ -178,6 +182,58 @@ async function routeCreateEvent(reqMsg: IncomingMessage): Promise<void> {
       interactions: 1,
       reciprocalReplies: existing?.ourLastActionId ? 1 : 0,
     })
+
+  const isComment = Boolean(comment.id)
+  const isOurApp = author.toLowerCase() === 'raeburn-social-os'
+  if (
+    isComment &&
+    existing?.ourLastActionId &&
+    !isOurApp &&
+    shouldContinue(state) &&
+    !isPolitical(body)
+  ) {
+    const research = isCurrentClaim(body)
+      ? await researchClaim(body)
+      : {verified: true, evidence: [], reason: 'research not required'}
+    const generated = await generateContent({
+      text: body,
+      subreddit,
+      topic: topic(body, subreddit),
+      evidence: research.evidence,
+    })
+    if (generated.action === 'COMMENT' && generated.body) {
+      const result = await executeAppAction(
+        {
+          idempotencyKey: `reply:${id}`,
+          action: 'COMMENT',
+          targetId: id,
+          subreddit,
+          body: generated.body,
+          identity: 'APP',
+          generatedAt: new Date().toISOString(),
+        },
+        {
+          fatigue: 0,
+          moderationRisk: false,
+          researchRequired: isCurrentClaim(body),
+          researchVerified: research.verified,
+        },
+      )
+      if (result.executed) {
+        await putConversation({
+          threadId: parentId,
+          subreddit,
+          state: 'ACTIVE',
+          participants: Array.from(
+            new Set([...(existing.participants ?? []), author].filter(Boolean)),
+          ),
+          lastEventAt: new Date().toISOString(),
+          ourLastActionId: result.redditId,
+        })
+        await recordRelationship(author, {substantiveReplies: 1})
+      }
+    }
+  }
 }
 
 async function routeDeleteEvent(reqMsg: IncomingMessage): Promise<void> {
