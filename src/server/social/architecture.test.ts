@@ -4,9 +4,9 @@ import {routeAction} from './action.ts'
 import {conversationState, shouldContinue} from './conversation_engine.ts'
 import {governanceGate} from './governance.ts'
 import {understandCandidate} from './intelligence.ts'
+import {mediaPlan} from './media.ts'
 import {verifyEvidence} from './research.ts'
 import {voiceBrief} from './voice.ts'
-import {mediaPlan} from './media.ts'
 
 test('governance fails closed in shadow', () => {
   const g = governanceGate({
@@ -119,9 +119,11 @@ test('voice brief encodes non-invention rule', () => {
   assert.match(voiceBrief('technology_ai'), /Never invent experience or facts/)
 })
 
-
 test('media planner only enables image generation for posts', () => {
-  assert.equal(mediaPlan({action: 'COMMENT', imagePrompt: 'diagram'}).needed, false)
+  assert.equal(
+    mediaPlan({action: 'COMMENT', imagePrompt: 'diagram'}).needed,
+    false,
+  )
   const plan = mediaPlan({
     action: 'POST',
     imagePrompt: 'A clean systems architecture diagram',
