@@ -16,6 +16,7 @@ import {
 } from '../shared/api.ts'
 import {getSocialOsState, setSocialOsState} from './db.ts'
 import {runObserver} from './observer.ts'
+import {runOriginalPost} from './social/original.ts'
 import {conversationState, shouldContinue} from './social/conversation_engine.ts'
 import {isCurrentClaim, isPolitical, topic} from './social/core.ts'
 import {executeAppAction} from './social/executor.ts'
@@ -80,6 +81,10 @@ async function route(
         break
       case Endpoint.OnObserve:
         await runObserver()
+        rsp = {}
+        break
+      case Endpoint.OnOriginalPost:
+        await runOriginalPost()
         rsp = {}
         break
       case Endpoint.OnPostCreate:
