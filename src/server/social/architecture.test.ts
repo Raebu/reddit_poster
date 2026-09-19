@@ -44,11 +44,25 @@ test('canary is tightly budgeted', () => {
 
 test('research requires authoritative or independent evidence', () => {
   assert.equal(
-    verifyEvidence([{source: 'primary', url: 'https://example.test', claim: 'x', authoritative: true}]).verified,
+    verifyEvidence([
+      {
+        source: 'primary',
+        url: 'https://example.test',
+        claim: 'x',
+        authoritative: true,
+      },
+    ]).verified,
     true,
   )
   assert.equal(
-    verifyEvidence([{source: 'one', url: 'https://example.test', claim: 'x', authoritative: false}]).verified,
+    verifyEvidence([
+      {
+        source: 'one',
+        url: 'https://example.test',
+        claim: 'x',
+        authoritative: false,
+      },
+    ]).verified,
     false,
   )
 })
@@ -87,7 +101,13 @@ test('conversation closes naturally', () => {
 
 test('candidate intelligence applies fatigue', () => {
   const result = understandCandidate(
-    {author: 'a', subreddit: 'technology', postId: 'p', text: 'How should this architecture work?', comments: 20},
+    {
+      author: 'a',
+      subreddit: 'technology',
+      postId: 'p',
+      text: 'How should this architecture work?',
+      comments: 20,
+    },
     {author: 2, thread: 0, subreddit: 0, topic: 0},
   )
   assert.equal(result.fatigue, 1)
