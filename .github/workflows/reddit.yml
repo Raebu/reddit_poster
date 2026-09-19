@@ -4,12 +4,13 @@ on:
     inputs:
       mode:
         type: choice
-        options: [test, identity, observe, post]
+        options: [test, identity, observe, post, sync-devvit-secret]
         default: test
   schedule:
     - cron: '17 10 * * 1,3,5'
 jobs:
   agent:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.mode != 'sync-devvit-secret' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -41,3 +42,21 @@ jobs:
       - name: Original post candidate
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'post' }}
         run: python post.py
+
+  sync-devvit-secret:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'sync-devvit-secret' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      DEVVIT_AUTH_TOKEN: ${{ secrets.DEVVIT_AUTH_TOKEN }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.18.0
+          cache: npm
+      - run: npm ci --no-fund
+      - name: Copy OpenAI secret to encrypted Devvit app settings
+        run: node scripts/sync-devvit-openai-setting.mjs
