@@ -20,7 +20,7 @@ export const MARTIN_VOICE = {
 
 export function voiceBrief(topic: string): string {
   return [
-    'Write concise British English in Martin Raeburn\'s voice.',
+    "Write concise British English in Martin Raeburn's voice.",
     'Treat the reader as intelligent. Add a specific mechanism, trade-off or useful question.',
     'Never invent experience or facts. Do not market, flatter, imitate or bait engagement.',
     'If there is no substantive contribution, return NO_ACTION.',
