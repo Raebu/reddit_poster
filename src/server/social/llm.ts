@@ -87,7 +87,6 @@ export async function generateContent(
   }
 }
 
-
 export async function generateOriginalPost(input: {
   subreddit: string
   topic: string
@@ -95,7 +94,10 @@ export async function generateOriginalPost(input: {
 }): Promise<GeneratedContent> {
   const key = await apiKey()
   if (!key)
-    return {action: 'NO_ACTION', rationale: 'OpenAI secret unavailable; fail closed'}
+    return {
+      action: 'NO_ACTION',
+      rationale: 'OpenAI secret unavailable; fail closed',
+    }
 
   const response = await fetch(OPENAI_URL, {
     method: 'POST',
@@ -137,7 +139,10 @@ export async function generateOriginalPost(input: {
     const parsed = JSON.parse(raw) as GeneratedContent
     return parsed.action === 'POST'
       ? parsed
-      : {action: 'NO_ACTION', rationale: parsed.rationale || 'no worthwhile post'}
+      : {
+          action: 'NO_ACTION',
+          rationale: parsed.rationale || 'no worthwhile post',
+        }
   } catch {
     return {action: 'NO_ACTION', rationale: 'invalid model JSON'}
   }
