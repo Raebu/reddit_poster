@@ -1,0 +1,28 @@
+name: Devvit LIVE Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      subreddit:
+        description: Production subreddit
+        required: true
+      version:
+        description: Approved Devvit version to install
+        required: true
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.18.0
+          cache: npm
+      - run: npm ci --no-fund
+      - run: npm test
+      - name: Install approved LIVE version
+        env:
+          DEVVIT_AUTH_TOKEN: ${{ secrets.DEVVIT_AUTH_TOKEN }}
+        run: npx devvit install "${{ inputs.subreddit }}" --version "${{ inputs.version }}"
