@@ -97,7 +97,11 @@ async function route(
         rsp = {error: 'not found', status: 404}
     }
   }
-  writeJson<PartialJsonValue>('status' in rsp ? rsp.status : 200, rsp, rspMsg)
+  const statusCode =
+    typeof rsp === 'object' && rsp !== null && 'status' in rsp
+      ? Number((rsp as {status: unknown}).status)
+      : 200
+  writeJson<PartialJsonValue>(statusCode, rsp as PartialJsonValue, rspMsg)
 }
 
 async function status(): Promise<SocialOsStatusRsp> {
