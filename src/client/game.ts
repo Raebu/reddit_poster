@@ -112,7 +112,9 @@ async function load(): Promise<void> {
           .join('')
       : '<p>No USER actions queued.</p>'
   }
-  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-approve]')) {
+  for (const button of document.querySelectorAll<HTMLButtonElement>(
+    '[data-approve]',
+  )) {
     button.addEventListener('click', async () => {
       await request('/api/social-os/user-queue/approve', {
         method: 'POST',
@@ -121,7 +123,9 @@ async function load(): Promise<void> {
       await load()
     })
   }
-  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-dismiss]')) {
+  for (const button of document.querySelectorAll<HTMLButtonElement>(
+    '[data-dismiss]',
+  )) {
     button.addEventListener('click', async () => {
       await request('/api/social-os/user-queue/dismiss', {
         method: 'POST',
