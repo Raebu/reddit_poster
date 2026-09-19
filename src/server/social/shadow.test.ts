@@ -62,3 +62,12 @@ test('shadow remains selective', () => {
   })
   assert.notEqual(d.action, 'COMMENT')
 })
+
+test('shadow never proposes unsupported vote or follow actions', () => {
+  const d = shadowDecision({
+    text: 'A thoughtful AI software implementation discussion with architecture, economics and execution constraints that is useful but does not ask a question. '.repeat(2),
+    subreddit: 'technology',
+    community: understood,
+  })
+  assert.ok(['COMMENT', 'POST', 'NO_ACTION', 'HOLD'].includes(d.action))
+})
