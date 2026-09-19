@@ -18,7 +18,14 @@
       }
     ]
   },
-  "triggers": {"onAppInstall": "/internal/on/app/install"},
+  "triggers": {
+    "onAppInstall": "/internal/on/app/install",
+    "onPostCreate": "/internal/on/post-create",
+    "onPostDelete": "/internal/on/post-delete",
+    "onCommentCreate": "/internal/on/comment-create",
+    "onCommentDelete": "/internal/on/comment-delete",
+    "onModAction": "/internal/on/mod-action"
+  },
   "scheduler": {
     "tasks": {
       "reddit-observer": {
