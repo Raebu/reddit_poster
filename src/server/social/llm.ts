@@ -1,4 +1,4 @@
-import {redis} from '@devvit/web/server'
+import {settings} from '@devvit/web/server'
 import {voiceBrief} from './voice.ts'
 
 type GenerateInput = {
@@ -20,7 +20,7 @@ const OPENAI_URL = 'https://api.openai.com/v1/responses'
 const OPENAI_MODEL = 'gpt-5-mini'
 
 async function apiKey(): Promise<string | null> {
-  return (await redis.get('social-os:secret:openai-api-key')) || null
+  return (await settings.get<string>('openai-api-key')) || null
 }
 
 export async function generateContent(
