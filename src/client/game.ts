@@ -105,11 +105,30 @@ async function load(): Promise<void> {
               <strong>${item.action}</strong> in r/${item.subreddit}
               <p style="white-space:pre-wrap">${item.title ? `${item.title}\n\n` : ''}${item.body}</p>
               <small>${item.status} · ${item.queuedAt}</small>
+              ${item.status === 'PENDING' ? `<div style="margin-top:8px"><button data-approve="${item.idempotencyKey}">Approve once</button> <button data-dismiss="${item.idempotencyKey}">Dismiss</button></div>` : ''}
             </article>
           `,
           )
           .join('')
       : '<p>No USER actions queued.</p>'
+  }
+  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-approve]')) {
+    button.addEventListener('click', async () => {
+      await request('/api/social-os/user-queue/approve', {
+        method: 'POST',
+        body: JSON.stringify({idempotencyKey: button.dataset.approve}),
+      })
+      await load()
+    })
+  }
+  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-dismiss]')) {
+    button.addEventListener('click', async () => {
+      await request('/api/social-os/user-queue/dismiss', {
+        method: 'POST',
+        body: JSON.stringify({idempotencyKey: button.dataset.dismiss}),
+      })
+      await load()
+    })
   }
 }
 
