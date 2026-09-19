@@ -17,7 +17,9 @@ export type ConversationMemory = {
   ourLastActionId?: string
 }
 
-export async function relationship(author: string): Promise<RelationshipMemory> {
+export async function relationship(
+  author: string,
+): Promise<RelationshipMemory> {
   const key = `social-os:relationship:${author.toLowerCase()}`
   const raw = await redis.get(key)
   return raw
@@ -27,14 +29,21 @@ export async function relationship(author: string): Promise<RelationshipMemory> 
 
 export async function recordRelationship(
   author: string,
-  delta: Partial<Pick<RelationshipMemory, 'interactions' | 'substantiveReplies' | 'reciprocalReplies'>>,
+  delta: Partial<
+    Pick<
+      RelationshipMemory,
+      'interactions' | 'substantiveReplies' | 'reciprocalReplies'
+    >
+  >,
 ): Promise<RelationshipMemory> {
   const current = await relationship(author)
   const next = {
     ...current,
     interactions: current.interactions + (delta.interactions ?? 0),
-    substantiveReplies: current.substantiveReplies + (delta.substantiveReplies ?? 0),
-    reciprocalReplies: current.reciprocalReplies + (delta.reciprocalReplies ?? 0),
+    substantiveReplies:
+      current.substantiveReplies + (delta.substantiveReplies ?? 0),
+    reciprocalReplies:
+      current.reciprocalReplies + (delta.reciprocalReplies ?? 0),
     lastInteractionAt: new Date().toISOString(),
   }
   await redis.set(
@@ -44,8 +53,13 @@ export async function recordRelationship(
   return next
 }
 
-export async function putConversation(memory: ConversationMemory): Promise<void> {
-  await redis.set(`social-os:conversation:${memory.threadId}`, JSON.stringify(memory))
+export async function putConversation(
+  memory: ConversationMemory,
+): Promise<void> {
+  await redis.set(
+    `social-os:conversation:${memory.threadId}`,
+    JSON.stringify(memory),
+  )
 }
 
 export async function getConversation(
