@@ -23,7 +23,9 @@ async function apiKey(): Promise<string | null> {
   return (await redis.get('social-os:secret:openai-api-key')) || null
 }
 
-export async function generateContent(input: GenerateInput): Promise<GeneratedContent> {
+export async function generateContent(
+  input: GenerateInput,
+): Promise<GeneratedContent> {
   const key = await apiKey()
   if (!key)
     return {
@@ -42,7 +44,9 @@ export async function generateContent(input: GenerateInput): Promise<GeneratedCo
     'Never invent personal experience or unsupported facts.',
     `Subreddit: ${input.subreddit}`,
     `Source discussion:\n${input.text}`,
-    evidence ? `Verified evidence:\n${evidence}` : 'No external evidence supplied.',
+    evidence
+      ? `Verified evidence:\n${evidence}`
+      : 'No external evidence supplied.',
   ].join('\n\n')
 
   const response = await fetch(OPENAI_URL, {
@@ -68,7 +72,10 @@ export async function generateContent(input: GenerateInput): Promise<GeneratedCo
   }
   const raw =
     json.output_text ??
-    json.output?.flatMap(item => item.content ?? []).map(item => item.text ?? '').join('') ??
+    json.output
+      ?.flatMap(item => item.content ?? [])
+      .map(item => item.text ?? '')
+      .join('') ??
     ''
   try {
     const parsed = JSON.parse(raw) as GeneratedContent
