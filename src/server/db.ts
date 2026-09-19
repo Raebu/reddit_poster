@@ -1,14 +1,36 @@
 import {redis} from '@devvit/web/server'
-import type {T3} from '@devvit/web/shared'
 
-export async function dbGetCounter(t3: T3): Promise<number> {
-  return Number((await redis.get(counterKey(t3))) ?? 0)
+export type SocialOsState = {
+  mode: 'OBSERVE' | 'SHADOW' | 'CANARY' | 'LIVE'
+  enabled: boolean
+  decisions: number
+  actions: number
+  holds: number
+  noActions: number
 }
 
-export async function dbIncCounter(t3: T3, amount: number): Promise<number> {
-  return redis.incrBy(counterKey(t3), amount)
+const STATE_KEY = 'social-os:state'
+
+export async function getSocialOsState(): Promise<SocialOsState> {
+  const raw = await redis.get(STATE_KEY)
+
+  if (!raw) {
+    return {
+      mode: 'OBSERVE',
+      enabled: true,
+      decisions: 0,
+      actions: 0,
+      holds: 0,
+      noActions: 0,
+    }
+  }
+
+  return JSON.parse(raw) as SocialOsState
 }
 
-function counterKey(t3: T3): string {
-  return `count:${t3}`
+export async function setSocialOsState(
+  state: SocialOsState,
+): Promise<SocialOsState> {
+  await redis.set(STATE_KEY, JSON.stringify(state))
+  return state
 }

@@ -1,24 +1,34 @@
-/** Generic error detail for all responses. */
 export type ErrorRsp = {error: string; status: number}
 
-/** The current counter state for this post. */
-export type GetCounterRsp = {count: number}
+export type SocialOsMode = 'OBSERVE' | 'SHADOW' | 'CANARY' | 'LIVE'
 
-/** Increment the post counter by a signed amount. */
-export type IncCounterReq = {amount: number}
-export type IncCounterRsp = {count: number}
+export type SocialOsStatusRsp = {
+  name: 'Raeburn Social OS'
+  platform: 'Reddit'
+  mode: SocialOsMode
+  enabled: boolean
+  decisions: number
+  actions: number
+  holds: number
+  noActions: number
+}
+
+export type SetModeReq = {
+  mode: SocialOsMode
+}
 
 export type Endpoint = (typeof Endpoint)[keyof typeof Endpoint]
+
 export const Endpoint = {
-  GetCounter: 'api/counter',
-  IncCounter: 'api/counter/inc',
-  OnAppInstall: 'internal/on/app/install',
+  Status: 'api/social-os/status',
+  SetMode: 'api/social-os/mode',
   OnMenuNewPost: 'internal/on/menu/new-post',
+  OnAppInstall: 'internal/on/app/install',
 } as const
 
 export const EndpointMethod = {
-  [Endpoint.GetCounter]: 'GET',
-  [Endpoint.IncCounter]: 'POST',
-  [Endpoint.OnAppInstall]: 'POST',
+  [Endpoint.Status]: 'GET',
+  [Endpoint.SetMode]: 'POST',
   [Endpoint.OnMenuNewPost]: 'POST',
+  [Endpoint.OnAppInstall]: 'POST',
 } as const satisfies {[endpoint: string]: 'GET' | 'POST'}

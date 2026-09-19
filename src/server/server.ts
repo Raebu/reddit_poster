@@ -10,18 +10,12 @@ import {
   Endpoint,
   EndpointMethod,
   type ErrorRsp,
-  type GetCounterRsp,
-  type IncCounterReq,
-  type IncCounterRsp,
+  type SetModeReq,
+  type SocialOsStatusRsp,
 } from '../shared/api.ts'
-import {dbGetCounter, dbIncCounter} from './db.ts'
+import {getSocialOsState, setSocialOsState} from './db.ts'
 
-type AnyRsp =
-  | GetCounterRsp
-  | IncCounterRsp
-  | UiResponse
-  | TriggerResponse
-  | ErrorRsp
+type AnyRsp = SocialOsStatusRsp | UiResponse | TriggerResponse | ErrorRsp
 
 export async function onReq(
   reqMsg: IncomingMessage,
@@ -44,55 +38,81 @@ async function route(
   const method = EndpointMethod[endpoint]
 
   let rsp: AnyRsp
+
   if (method !== reqMsg.method) {
     rsp = {error: 'not found', status: 404}
   } else {
     switch (endpoint) {
-      case Endpoint.GetCounter:
-        rsp = await routeGetCounter()
+      case Endpoint.Status:
+        rsp = await status()
         break
-      case Endpoint.IncCounter:
-        rsp = await routeInc(reqMsg)
+
+      case Endpoint.SetMode:
+        rsp = await setMode(reqMsg)
         break
+
       case Endpoint.OnMenuNewPost:
         rsp = await routeMenuNewPost()
         break
+
       case Endpoint.OnAppInstall:
         rsp = await routeAppInstall()
         break
+
       default:
         endpoint satisfies never
         rsp = {error: 'not found', status: 404}
-        break
     }
   }
 
   writeJson<PartialJsonValue>('status' in rsp ? rsp.status : 200, rsp, rspMsg)
 }
 
-async function routeGetCounter(): Promise<GetCounterRsp> {
-  const t3 = context.postId
-  if (!t3) throw Error('no t3')
-  return {count: await dbGetCounter(t3)}
+async function status(): Promise<SocialOsStatusRsp> {
+  const state = await getSocialOsState()
+
+  return {
+    name: 'Raeburn Social OS',
+    platform: 'Reddit',
+    ...state,
+  }
 }
 
-async function routeInc(reqMsg: IncomingMessage): Promise<IncCounterRsp> {
-  const t3 = context.postId
-  if (!t3) throw Error('no t3')
-  const req = await readJson<IncCounterReq>(reqMsg)
-  return {count: await dbIncCounter(t3, req.amount)}
+async function setMode(reqMsg: IncomingMessage): Promise<SocialOsStatusRsp> {
+  const req = await readJson<SetModeReq>(reqMsg)
+
+  if (!['OBSERVE', 'SHADOW', 'CANARY', 'LIVE'].includes(req.mode)) {
+    throw new Error('invalid Social OS mode')
+  }
+
+  const current = await getSocialOsState()
+  const state = await setSocialOsState({...current, mode: req.mode})
+
+  return {
+    name: 'Raeburn Social OS',
+    platform: 'Reddit',
+    ...state,
+  }
 }
 
 async function routeMenuNewPost(): Promise<UiResponse> {
-  const post = await reddit.submitCustomPost({title: context.appSlug})
+  const post = await reddit.submitCustomPost({
+    title: 'Raeburn Social OS',
+  })
+
   return {
-    showToast: {text: `Post ${post.id} created.`, appearance: 'success'},
+    showToast: {
+      text: 'Raeburn Social OS console created.',
+      appearance: 'success',
+    },
     navigateTo: post.url,
   }
 }
 
 async function routeAppInstall(): Promise<TriggerResponse> {
-  await reddit.submitCustomPost({title: context.appSlug})
+  await reddit.submitCustomPost({
+    title: 'Raeburn Social OS',
+  })
   return {}
 }
 
@@ -100,18 +120,17 @@ async function readJson<T>(reqMsg: IncomingMessage): Promise<T> {
   const chunks: Uint8Array[] = []
   reqMsg.on('data', chunk => chunks.push(chunk))
   await once(reqMsg, 'end')
-  return JSON.parse(`${Buffer.concat(chunks)}`)
+  return JSON.parse(`${Buffer.concat(chunks)}`) as T
 }
 
 function writeJson<T extends PartialJsonValue>(
-  status: number,
+  statusCode: number,
   json: Readonly<T>,
   rsp: ServerResponse,
 ): void {
   const body = JSON.stringify(json)
-  const len = Buffer.byteLength(body)
-  rsp.writeHead(status, {
-    'Content-Length': len,
+  rsp.writeHead(statusCode, {
+    'Content-Length': Buffer.byteLength(body),
     'Content-Type': 'application/json',
   })
   rsp.end(body)

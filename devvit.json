@@ -15,8 +15,8 @@
   "menu": {
     "items": [
       {
-        "label": "[raeburn-social-os] New Post",
-        "description": "Create a new raeburn-social-os post.",
+        "label": "Raeburn Social OS Console",
+        "description": "Open the Raeburn Social OS console.",
         "location": "subreddit",
         "endpoint": "/internal/on/menu/new-post"
       }

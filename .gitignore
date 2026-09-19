@@ -2,3 +2,7 @@
 /dist/
 /public/*.js*
 /.env
+
+# Python generated files
+__pycache__/
+*.py[cod]
