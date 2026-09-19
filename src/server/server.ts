@@ -19,8 +19,8 @@ import {runObserver} from './observer.ts'
 import {conversationState} from './social/conversation_engine.ts'
 import {
   getConversation,
-  putConversation,
   purgeContent,
+  putConversation,
   recordRelationship,
 } from './social/memory.ts'
 import {listUserQueue} from './social/user_queue.ts'
@@ -118,9 +118,7 @@ async function setMode(reqMsg: IncomingMessage): Promise<SocialOsStatusRsp> {
   return {name: 'Raeburn Social OS', platform: 'Reddit', ...state}
 }
 
-async function setEnabled(
-  reqMsg: IncomingMessage,
-): Promise<SocialOsStatusRsp> {
+async function setEnabled(reqMsg: IncomingMessage): Promise<SocialOsStatusRsp> {
   const req = await readJson<SetEnabledReq>(reqMsg)
   const current = await getSocialOsState()
   const state = await setSocialOsState({...current, enabled: req.enabled})
