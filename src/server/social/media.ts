@@ -22,8 +22,7 @@ export function mediaPlan(input: {
   return {
     needed: true,
     prompt: input.imagePrompt.trim(),
-    alt:
-      input.body?.slice(0, 180) || 'Generated illustration for Reddit post',
+    alt: input.body?.slice(0, 180) || 'Generated illustration for Reddit post',
   }
 }
 
@@ -49,7 +48,8 @@ export async function generateAndUploadImage(
       n: 1,
     }),
   })
-  if (!response.ok) throw new Error(`OpenAI image generation failed: ${response.status}`)
+  if (!response.ok)
+    throw new Error(`OpenAI image generation failed: ${response.status}`)
 
   const result = (await response.json()) as {
     data?: Array<{b64_json?: string; url?: string}>
