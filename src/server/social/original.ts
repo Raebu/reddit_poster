@@ -13,7 +13,9 @@ const TARGETS = [
 
 export async function runOriginalPost(): Promise<void> {
   const week = Math.floor(Date.now() / (7 * 86400000))
-  const [subreddit, topic] = TARGETS[week % TARGETS.length]
+  const target = TARGETS[week % TARGETS.length]
+  if (!target) return
+  const [subreddit, topic] = target
   const idem = `social-os:original:${new Date().toISOString().slice(0, 10)}`
   if (await redis.get(idem)) return
 
