@@ -9,6 +9,11 @@ export type SocialOsState = {
   noActions: number
   shadowProposals: number
   shadowComments: number
+  canaryActions: number
+  liveActions: number
+  failures: number
+  lastRunAt?: string
+  lastActionAt?: string
 }
 
 const STATE_KEY = 'social-os:state'
@@ -22,6 +27,9 @@ const defaults: SocialOsState = {
   noActions: 0,
   shadowProposals: 0,
   shadowComments: 0,
+  canaryActions: 0,
+  liveActions: 0,
+  failures: 0,
 }
 
 export async function getSocialOsState(): Promise<SocialOsState> {
