@@ -52,7 +52,7 @@ export async function executeAppAction(
   let redditId = ''
   if (envelope.action === 'COMMENT' && envelope.targetId) {
     const comment = await reddit.submitComment({
-      id: envelope.targetId,
+      id: envelope.targetId as `t1_${string}` | `t3_${string}`,
       text: envelope.body,
       runAs: 'APP',
     })
