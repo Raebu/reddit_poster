@@ -6,9 +6,6 @@ on:
         type: choice
         options: [test, identity, observe, post]
         default: test
-      live:
-        type: boolean
-        default: false
   schedule:
     - cron: '17 10 * * 1,3,5'
 jobs:
@@ -25,7 +22,7 @@ jobs:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
       SOCIAL_MEMORY_SHEET_ID: ${{ vars.SOCIAL_MEMORY_SHEET_ID || '1yIwJqlmgRbp1_o4MFCLHMSOOgaE3DYMd31eF43dF9bs' }}
-      DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.live != true }}
+      DRY_RUN: 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

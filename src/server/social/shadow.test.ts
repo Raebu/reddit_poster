@@ -25,6 +25,20 @@ test('shadow holds current claims for research', () => {
   assert.equal(d.action, 'HOLD')
 })
 
+test('shadow can rank a current claim after research is verified', () => {
+  const d = shadowDecision({
+    text: 'Today an AI company announced a software acquisition. How should leaders assess the architecture, implementation economics and integration execution risk? '.repeat(
+      3,
+    ),
+    subreddit: 'business',
+    community: understood,
+    score: 12,
+    comments: 20,
+    researchVerified: true,
+  })
+  assert.equal(d.action, 'COMMENT')
+})
+
 test('shadow refuses unknown communities', () => {
   const d = shadowDecision({
     text: 'How should a startup think about implementation economics and distribution trade-offs? '.repeat(

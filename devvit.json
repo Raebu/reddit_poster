@@ -18,6 +18,11 @@
         "type": "string",
         "label": "OpenAI API key",
         "isSecret": true
+      },
+      "live-enabled": {
+        "type": "boolean",
+        "label": "Allow LIVE mode after Reddit approval",
+        "defaultValue": false
       }
     }
   },
@@ -30,7 +35,7 @@
     "redis": true,
     "reddit": {
       "enable": true,
-      "asUser": ["SUBMIT_POST", "SUBMIT_COMMENT", "SUBSCRIBE_TO_SUBREDDIT"]
+      "asUser": ["SUBMIT_POST", "SUBMIT_COMMENT"]
     }
   },
   "menu": {

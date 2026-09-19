@@ -14,6 +14,8 @@ export type SocialOsStatusRsp = {
   canaryActions: number
   liveActions: number
   failures: number
+  openAiConfigured: boolean
+  liveEnabled: boolean
   lastRunAt?: string
   lastActionAt?: string
 }

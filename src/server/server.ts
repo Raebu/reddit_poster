@@ -1,7 +1,13 @@
+import {randomUUID} from 'node:crypto'
 import {once} from 'node:events'
 import type {IncomingMessage, ServerResponse} from 'node:http'
-import {reddit, redis} from '@devvit/web/server'
+import {context, reddit, redis, settings} from '@devvit/web/server'
 import type {
+  OnCommentCreateRequest,
+  OnCommentDeleteRequest,
+  OnModActionRequest,
+  OnPostCreateRequest,
+  OnPostDeleteRequest,
   PartialJsonValue,
   TriggerResponse,
   UiResponse,
@@ -18,6 +24,7 @@ import {getSocialOsState, setSocialOsState} from './db.ts'
 import {runObserver} from './observer.ts'
 import {
   conversationState,
+  conversationWithinLimits,
   shouldContinue,
 } from './social/conversation_engine.ts'
 import {isCurrentClaim, isPolitical, topic} from './social/core.ts'
@@ -26,9 +33,11 @@ import {generateContent} from './social/llm.ts'
 import {
   getConversation,
   purgeContent,
+  purgeRelationship,
   putConversation,
   recordRelationship,
 } from './social/memory.ts'
+import {openAiKey} from './social/openai.ts'
 import {runOriginalPost} from './social/original.ts'
 import {researchClaim} from './social/research.ts'
 import {
@@ -52,9 +61,11 @@ export async function onReq(
   try {
     await route(reqMsg, rspMsg)
   } catch (err) {
-    const msg = `server error; ${err instanceof Error ? err.stack : err}`
-    console.error(msg)
-    writeJson<ErrorRsp>(500, {error: msg, status: 500}, rspMsg)
+    console.error(
+      'server request failed',
+      err instanceof Error ? err.message : String(err),
+    )
+    writeJson<ErrorRsp>(500, {error: 'request failed', status: 500}, rspMsg)
   }
 }
 
@@ -62,11 +73,15 @@ async function route(
   reqMsg: IncomingMessage,
   rspMsg: ServerResponse,
 ): Promise<void> {
-  const endpoint = reqMsg.url?.slice(1) as Endpoint
+  const endpoint = (reqMsg.url?.split('?')[0] ?? '').replace(
+    /^\//,
+    '',
+  ) as Endpoint
   const method = EndpointMethod[endpoint]
   let rsp: AnyRsp
   if (method !== reqMsg.method) rsp = {error: 'not found', status: 404}
   else {
+    if (endpoint.startsWith('api/')) await requireModerator()
     switch (endpoint) {
       case Endpoint.Status:
         rsp = await status()
@@ -91,6 +106,7 @@ async function route(
         break
       }
       case Endpoint.OnMenuNewPost:
+        await requireModerator()
         rsp = await routeMenuNewPost()
         break
       case Endpoint.OnAppInstall:
@@ -132,7 +148,13 @@ async function route(
 
 async function status(): Promise<SocialOsStatusRsp> {
   const state = await getSocialOsState()
-  return {name: 'Raeburn Social OS', platform: 'Reddit', ...state}
+  return {
+    name: 'Raeburn Social OS',
+    platform: 'Reddit',
+    ...state,
+    openAiConfigured: Boolean(await openAiKey()),
+    liveEnabled: Boolean(await settings.get<boolean>('live-enabled')),
+  }
 }
 
 async function setMode(reqMsg: IncomingMessage): Promise<SocialOsStatusRsp> {
@@ -140,19 +162,66 @@ async function setMode(reqMsg: IncomingMessage): Promise<SocialOsStatusRsp> {
   if (!['OBSERVE', 'SHADOW', 'CANARY', 'LIVE'].includes(req.mode))
     throw new Error('invalid Social OS mode')
   const current = await getSocialOsState()
+  if (req.mode === 'LIVE') {
+    const liveEnabled = Boolean(await settings.get<boolean>('live-enabled'))
+    if (
+      !liveEnabled ||
+      current.mode !== 'CANARY' ||
+      current.canaryActions < 1 ||
+      current.failures > 0
+    )
+      throw new Error('LIVE gate has not been satisfied')
+  }
   const state = await setSocialOsState({...current, mode: req.mode})
-  return {name: 'Raeburn Social OS', platform: 'Reddit', ...state}
+  return {
+    name: 'Raeburn Social OS',
+    platform: 'Reddit',
+    ...state,
+    openAiConfigured: Boolean(await openAiKey()),
+    liveEnabled: Boolean(await settings.get<boolean>('live-enabled')),
+  }
 }
 
 async function setEnabled(reqMsg: IncomingMessage): Promise<SocialOsStatusRsp> {
   const req = await readJson<SetEnabledReq>(reqMsg)
+  if (typeof req.enabled !== 'boolean')
+    throw new Error('enabled must be boolean')
   const current = await getSocialOsState()
   const state = await setSocialOsState({...current, enabled: req.enabled})
-  return {name: 'Raeburn Social OS', platform: 'Reddit', ...state}
+  return {
+    name: 'Raeburn Social OS',
+    platform: 'Reddit',
+    ...state,
+    openAiConfigured: Boolean(await openAiKey()),
+    liveEnabled: Boolean(await settings.get<boolean>('live-enabled')),
+  }
+}
+
+async function requireModerator(): Promise<void> {
+  if (!context.username || !context.subredditName)
+    throw new Error('moderator authentication required')
+  const moderators = await reddit
+    .getModerators({
+      subredditName: context.subredditName,
+      username: context.username,
+      limit: 1,
+      pageSize: 1,
+    })
+    .all()
+  if (
+    !moderators.some(
+      moderator =>
+        moderator.username.toLowerCase() === context.username?.toLowerCase(),
+    )
+  )
+    throw new Error('moderator access required')
 }
 
 async function routeMenuNewPost(): Promise<UiResponse> {
-  const post = await reddit.submitCustomPost({title: 'Raeburn Social OS'})
+  const post = await reddit.submitCustomPost({
+    subredditName: context.subredditName,
+    title: 'Raeburn Social OS',
+  })
   return {
     showToast: {
       text: 'Raeburn Social OS console created.',
@@ -163,130 +232,161 @@ async function routeMenuNewPost(): Promise<UiResponse> {
 }
 
 async function routeAppInstall(): Promise<TriggerResponse> {
-  await reddit.submitCustomPost({title: 'Raeburn Social OS'})
+  await reddit.submitCustomPost({
+    subredditName: context.subredditName,
+    title: 'Raeburn Social OS',
+  })
   return {}
 }
 
 async function routeCreateEvent(reqMsg: IncomingMessage): Promise<void> {
-  const payload = await readJson<Record<string, unknown>>(reqMsg)
-  const event = (payload.event ?? payload) as Record<string, unknown>
-  const post = (event.post ?? {}) as Record<string, unknown>
-  const comment = (event.comment ?? {}) as Record<string, unknown>
-  const id = String(comment.id ?? post.id ?? event.id ?? '')
-  if (!id) return
-  const parentId = String(
-    comment.postId ?? comment.parentId ?? post.id ?? event.postId ?? id,
+  const payload = await readJson<OnPostCreateRequest | OnCommentCreateRequest>(
+    reqMsg,
   )
-  const subreddit = String(
-    comment.subredditName ??
-      post.subredditName ??
-      event.subredditName ??
-      'unknown',
-  )
-  const author = String(
-    comment.authorName ?? post.authorName ?? event.authorName ?? 'unknown',
-  )
-  const body = String(comment.body ?? post.body ?? post.title ?? '')
-  const existing = await getConversation(parentId)
-  const state = conversationState({body})
-  await putConversation({
-    threadId: parentId,
-    subreddit,
-    state,
-    participants: Array.from(
-      new Set([...(existing?.participants ?? []), author].filter(Boolean)),
-    ),
-    lastEventAt: new Date().toISOString(),
-    ourLastActionId: existing?.ourLastActionId,
-  })
-  if (author && author !== 'unknown')
-    await recordRelationship(author, {
-      interactions: 1,
-      reciprocalReplies: existing?.ourLastActionId ? 1 : 0,
-    })
+  if (!('comment' in payload) || !payload.comment) return
 
-  const isComment = Boolean(comment.id)
-  const isOurApp = author.toLowerCase() === 'raeburn-social-os'
+  const {comment} = payload
+  const eventKey = `social-os:event:comment-create:${comment.id}`
+  const token = randomUUID()
+  await redis.set(eventKey, token, {
+    nx: true,
+    expiration: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+  })
+  if ((await redis.get(eventKey)) !== token) return
+
+  const author = payload.author?.name || comment.author
+  if (payload.author?.accountType === 3) return
+  const appUser = await reddit.getAppUser()
   if (
-    isComment &&
-    existing?.ourLastActionId &&
-    !isOurApp &&
-    shouldContinue(state) &&
-    !isPolitical(body)
-  ) {
-    const research = isCurrentClaim(body)
-      ? await researchClaim(body)
-      : {verified: true, evidence: [], reason: 'research not required'}
-    const generated = await generateContent({
-      text: body,
+    !author ||
+    author === '[deleted]' ||
+    author.toLowerCase() === appUser?.username.toLowerCase()
+  )
+    return
+  if (!(await redis.get(`social-os:owned:${comment.parentId}`))) return
+
+  const subreddit = payload.subreddit?.name || context.subredditName
+  const existing = await getConversation(comment.postId)
+  if (!existing || existing.ourLastActionId !== comment.parentId) return
+
+  const state = conversationState({
+    body: comment.body,
+    locked: payload.post?.isLocked,
+    deleted: comment.deleted,
+  })
+  await putConversation({
+    ...existing,
+    state,
+    participants: Array.from(new Set([...existing.participants, author])),
+    lastEventAt: new Date().toISOString(),
+  })
+  await recordRelationship(author, {interactions: 1, reciprocalReplies: 1})
+
+  if (
+    !shouldContinue(state) ||
+    !conversationWithinLimits(existing) ||
+    isPolitical(comment.body)
+  )
+    return
+
+  const researchRequired = isCurrentClaim(comment.body)
+  const research = researchRequired
+    ? await researchClaim(comment.body)
+    : {verified: true, evidence: [], reason: 'research not required'}
+  if (researchRequired && !research.verified) return
+
+  const classifiedTopic = topic(comment.body, subreddit)
+  const generated = await generateContent({
+    text: comment.body,
+    subreddit,
+    topic: classifiedTopic,
+    evidence: research.evidence,
+  })
+  if (generated.action !== 'COMMENT' || !generated.body) return
+
+  const result = await executeAppAction(
+    {
+      idempotencyKey: `reply:${comment.id}`,
+      action: 'COMMENT',
+      targetId: comment.id,
       subreddit,
-      topic: topic(body, subreddit),
-      evidence: research.evidence,
-    })
-    if (generated.action === 'COMMENT' && generated.body) {
-      const result = await executeAppAction(
-        {
-          idempotencyKey: `reply:${id}`,
-          action: 'COMMENT',
-          targetId: id,
-          subreddit,
-          body: generated.body,
-          identity: 'APP',
-          generatedAt: new Date().toISOString(),
-        },
-        {
-          fatigue: 0,
-          moderationRisk: false,
-          researchRequired: isCurrentClaim(body),
-          researchVerified: research.verified,
-        },
-      )
-      if (result.executed) {
-        await putConversation({
-          threadId: parentId,
-          subreddit,
-          state: 'ACTIVE',
-          participants: Array.from(
-            new Set([...(existing.participants ?? []), author].filter(Boolean)),
-          ),
-          lastEventAt: new Date().toISOString(),
-          ourLastActionId: result.redditId,
-        })
-        await recordRelationship(author, {substantiveReplies: 1})
-      }
-    }
-  }
+      body: generated.body,
+      identity: 'APP',
+      author,
+      topic: classifiedTopic,
+      generatedAt: new Date().toISOString(),
+    },
+    {
+      moderationRisk: false,
+      researchRequired,
+      researchVerified: research.verified,
+    },
+  )
+  if (!result.executed) return
+
+  await putConversation({
+    ...existing,
+    state: 'ACTIVE',
+    participants: Array.from(new Set([...existing.participants, author])),
+    lastEventAt: new Date().toISOString(),
+    ourLastActionId: result.redditId,
+    replyCount: (existing.replyCount ?? 0) + 1,
+    lastReplyAt: new Date().toISOString(),
+  })
+  await recordRelationship(author, {substantiveReplies: 1})
 }
 
 async function routeDeleteEvent(reqMsg: IncomingMessage): Promise<void> {
-  const payload = await readJson<Record<string, unknown>>(reqMsg)
-  const event = (payload.event ?? payload) as Record<string, unknown>
-  const id = String(
-    (event.post as Record<string, unknown> | undefined)?.id ??
-      (event.comment as Record<string, unknown> | undefined)?.id ??
-      event.id ??
-      '',
+  const payload = await readJson<OnPostDeleteRequest | OnCommentDeleteRequest>(
+    reqMsg,
   )
+  const id = 'commentId' in payload ? payload.commentId : payload.postId
   if (id) await purgeContent(id)
+  if ('postId' in payload && payload.postId && payload.postId !== id) {
+    await purgeContent(payload.postId)
+  }
+  if (payload.author?.name) await purgeRelationship(payload.author.name)
 }
 
 async function routeModAction(reqMsg: IncomingMessage): Promise<void> {
-  const payload = await readJson<Record<string, unknown>>(reqMsg)
-  const raw = JSON.stringify(payload)
-  const risky = /ban|remove|warning|violation/i.test(raw)
-  if (risky) {
-    const current = await getSocialOsState()
-    await setSocialOsState({...current, enabled: false})
-    await redis.set(
-      'social-os:moderation:last',
-      JSON.stringify({at: new Date().toISOString(), payload}),
-    )
+  const payload = await readJson<OnModActionRequest>(reqMsg)
+  const action = payload.action?.toLowerCase() ?? ''
+  if (!/^(remove|spam|lock)(link|comment)?$/.test(action)) return
+  const targetId = payload.targetComment?.id ?? payload.targetPost?.id
+  if (!targetId || !(await redis.get(`social-os:owned:${targetId}`))) return
+
+  const current = await getSocialOsState()
+  await setSocialOsState({...current, enabled: false})
+  const threadId = payload.targetComment?.postId ?? payload.targetPost?.id
+  if (threadId) {
+    const conversation = await getConversation(threadId)
+    if (conversation)
+      await putConversation({
+        ...conversation,
+        state: 'MODERATED',
+        lastEventAt: new Date().toISOString(),
+      })
   }
+  await redis.set(
+    'social-os:moderation:last',
+    JSON.stringify({
+      at: new Date().toISOString(),
+      action,
+      targetId,
+      moderator: payload.moderator?.name,
+    }),
+    {expiration: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)},
+  )
 }
 
 async function readJson<T>(reqMsg: IncomingMessage): Promise<T> {
   const chunks: Uint8Array[] = []
-  reqMsg.on('data', chunk => chunks.push(chunk))
+  let length = 0
+  reqMsg.on('data', chunk => {
+    length += chunk.length
+    if (length > 1_000_000) reqMsg.destroy(new Error('request too large'))
+    else chunks.push(chunk)
+  })
   await once(reqMsg, 'end')
   return JSON.parse(`${Buffer.concat(chunks)}`) as T
 }
@@ -300,6 +400,7 @@ function writeJson<T extends PartialJsonValue>(
   rsp.writeHead(statusCode, {
     'Content-Length': Buffer.byteLength(body),
     'Content-Type': 'application/json',
+    'Cache-Control': 'no-store',
   })
   rsp.end(body)
 }

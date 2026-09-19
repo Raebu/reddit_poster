@@ -20,6 +20,7 @@ test('policy parity', () => {
   assert.equal(isCurrentClaim('Company X acquired Company Y today'), true)
   assert.equal(gateGenerated('DM me and we can help')[0], false)
   assert.equal(gateGenerated('I led the acquisition')[0], false)
+  assert.equal(gateGenerated('Our client achieved this result')[0], false)
   assert.equal(isPolitical('vote for this candidate'), true)
 })
 test('community parity', () => {

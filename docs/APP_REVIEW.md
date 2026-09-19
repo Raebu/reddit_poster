@@ -14,7 +14,10 @@ Raeburn Social OS is a hosted Reddit participation agent for the app identity, w
 - Moderation warning/ban signals pause participation.
 - Repeated failures trip a circuit breaker.
 - Idempotency prevents duplicate writes.
+- APP mutations are limited to the subreddit installation that invoked them.
 - Generated content is re-checked deterministically before execution.
+- LIVE requires a developer-controlled global setting, a successful Canary
+  action and a clean failure state.
 
 ## AI
 
@@ -22,7 +25,10 @@ OpenAI is the only configured external LLM provider. Reddit text is sent only wh
 
 ## USER actions
 
-USER posting/commenting/subscribing is never background automation. Each action is queued and must be explicitly triggered by the user.
+USER posting/commenting is never background automation. Each action is bound
+to the requesting account, displayed in full, and must be explicitly triggered
+once by that same user. USER actions cannot target a different subreddit
+installation.
 
 ## Data handling
 

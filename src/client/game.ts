@@ -14,6 +14,8 @@ type Status = {
   canaryActions: number
   liveActions: number
   failures: number
+  openAiConfigured: boolean
+  liveEnabled: boolean
   lastRunAt?: string
   lastActionAt?: string
 }
@@ -26,6 +28,16 @@ type UserQueueItem = {
   title?: string
   queuedAt: string
   status: string
+  requestedBy?: {id: string; username: string}
+}
+
+function escapeHtml(value: unknown): string {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;')
 }
 
 const root = document.body
@@ -74,7 +86,9 @@ async function load(): Promise<void> {
   if (status) {
     status.innerHTML = `
       <p><strong>Status:</strong> ${state.enabled ? 'Enabled' : 'Disabled'}</p>
-      <p><strong>Mode:</strong> ${state.mode}</p>
+      <p><strong>Mode:</strong> ${escapeHtml(state.mode)}</p>
+      <p><strong>OpenAI:</strong> ${state.openAiConfigured ? 'Configured' : 'Not configured'}</p>
+      <p><strong>LIVE gate:</strong> ${state.liveEnabled ? 'Enabled' : 'Locked'}</p>
       <p>
         Decisions: ${state.decisions} ·
         Actions: ${state.actions} ·
@@ -90,10 +104,14 @@ async function load(): Promise<void> {
         Live actions: ${state.liveActions} ·
         Failures: ${state.failures}
       </p>
-      <p><strong>Last hosted run:</strong> ${state.lastRunAt ?? 'Not yet'}</p>
-      <p><strong>Last action:</strong> ${state.lastActionAt ?? 'Not yet'}</p>
+      <p><strong>Last hosted run:</strong> ${escapeHtml(state.lastRunAt ?? 'Not yet')}</p>
+      <p><strong>Last action:</strong> ${escapeHtml(state.lastActionAt ?? 'Not yet')}</p>
     `
   }
+
+  const liveButton =
+    document.querySelector<HTMLButtonElement>('[data-mode="LIVE"]')
+  if (liveButton) liveButton.disabled = !state.liveEnabled
 
   const queueNode = document.querySelector('#queue')
   if (queueNode) {
@@ -102,10 +120,10 @@ async function load(): Promise<void> {
           .map(
             item => `
             <article style="border:1px solid #ddd;padding:12px;margin:8px 0;border-radius:8px">
-              <strong>${item.action}</strong> in r/${item.subreddit}
-              <p style="white-space:pre-wrap">${item.title ? `${item.title}\n\n` : ''}${item.body}</p>
-              <small>${item.status} · ${item.queuedAt}</small>
-              ${item.status === 'PENDING' ? `<div style="margin-top:8px"><button data-approve="${item.idempotencyKey}">Approve once</button> <button data-dismiss="${item.idempotencyKey}">Dismiss</button></div>` : ''}
+              <strong>${escapeHtml(item.action)}</strong> in r/${escapeHtml(item.subreddit)}
+              <p style="white-space:pre-wrap">${escapeHtml(item.title ? `${item.title}\n\n${item.body}` : item.body)}</p>
+              <small>${escapeHtml(item.status)} · ${escapeHtml(item.queuedAt)}</small>
+              ${item.status === 'PENDING' ? `<p><strong>This will post once as u/${escapeHtml(item.requestedBy?.username ?? 'your account')}.</strong></p><div style="margin-top:8px"><button data-approve="${escapeHtml(item.idempotencyKey)}">Post once as me</button> <button data-dismiss="${escapeHtml(item.idempotencyKey)}">Dismiss</button></div>` : ''}
             </article>
           `,
           )
@@ -116,6 +134,12 @@ async function load(): Promise<void> {
     '[data-approve]',
   )) {
     button.addEventListener('click', async () => {
+      if (
+        !window.confirm(
+          'Post the displayed content once from your Reddit account?',
+        )
+      )
+        return
       await request('/api/social-os/user-queue/approve', {
         method: 'POST',
         body: JSON.stringify({idempotencyKey: button.dataset.approve}),

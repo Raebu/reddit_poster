@@ -24,3 +24,13 @@ export function conversationState(input: {
 export function shouldContinue(state: ConversationState): boolean {
   return state === 'ACTIVE'
 }
+
+export function conversationWithinLimits(
+  input: {replyCount?: number; lastReplyAt?: string},
+  now = Date.now(),
+): boolean {
+  if ((input.replyCount ?? 0) >= 3) return false
+  if (!input.lastReplyAt) return true
+  const last = Date.parse(input.lastReplyAt)
+  return !Number.isFinite(last) || now - last >= 30 * 60 * 1000
+}

@@ -25,4 +25,4 @@ jobs:
       - name: Install approved LIVE version
         env:
           DEVVIT_AUTH_TOKEN: ${{ secrets.DEVVIT_AUTH_TOKEN }}
-        run: npx devvit install "${{ inputs.subreddit }}" --version "${{ inputs.version }}"
+        run: npx devvit install "${{ inputs.subreddit }}" "raeburn-social-os@${{ inputs.version }}"

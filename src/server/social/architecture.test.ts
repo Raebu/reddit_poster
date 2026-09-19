@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
 import {routeAction} from './action.ts'
-import {conversationState, shouldContinue} from './conversation_engine.ts'
+import {
+  conversationState,
+  conversationWithinLimits,
+  shouldContinue,
+} from './conversation_engine.ts'
 import {governanceGate} from './governance.ts'
 import {understandCandidate} from './intelligence.ts'
 import {mediaPlan} from './media.ts'
@@ -66,6 +70,23 @@ test('research requires authoritative or independent evidence', () => {
     ]).verified,
     false,
   )
+  assert.equal(
+    verifyEvidence([
+      {
+        source: 'one',
+        url: 'https://news.example/a',
+        claim: 'x',
+        authoritative: false,
+      },
+      {
+        source: 'same publisher',
+        url: 'https://news.example/b',
+        claim: 'x',
+        authoritative: false,
+      },
+    ]).verified,
+    false,
+  )
 })
 
 test('user identity always routes to explicit approval', () => {
@@ -100,6 +121,17 @@ test('conversation closes naturally', () => {
   assert.equal(shouldContinue(state), false)
 })
 
+test('conversation limits stop rapid or runaway replies', () => {
+  assert.equal(conversationWithinLimits({replyCount: 3}), false)
+  assert.equal(
+    conversationWithinLimits({
+      replyCount: 1,
+      lastReplyAt: new Date(Date.now() - 5 * 60_000).toISOString(),
+    }),
+    false,
+  )
+})
+
 test('candidate intelligence applies fatigue', () => {
   const result = understandCandidate(
     {
@@ -127,7 +159,7 @@ test('media planner only enables image generation for posts', () => {
   const plan = mediaPlan({
     action: 'POST',
     imagePrompt: 'A clean systems architecture diagram',
-    body: 'Architecture overview',
+    body: 'Architecture overview. '.repeat(30),
   })
   assert.equal(plan.needed, true)
   assert.match(plan.prompt ?? '', /architecture/)

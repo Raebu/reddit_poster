@@ -13,9 +13,6 @@ class RedditAPI:
  def hot(self,subreddit,limit=25):return list(self.reddit.subreddit(subreddit).hot(limit=limit))
  def comment(self,submission_id,text):return self.reddit.submission(id=submission_id).reply(text)
  def reply(self,comment_id,text):return self.reddit.comment(id=comment_id).reply(text)
- def upvote(self,thing):thing.upvote();return True
- def save(self,thing):thing.save();return True
- def submit(self,subreddit,title,body):return self.reddit.subreddit(subreddit).submit(title,selftext=body)
  def rules(self,subreddit):
   s=self.reddit.subreddit(subreddit)
   try:return [{'short_name':r.short_name,'description':r.description,'kind':r.kind} for r in s.rules]

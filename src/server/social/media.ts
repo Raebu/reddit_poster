@@ -1,4 +1,5 @@
-import {media, settings} from '@devvit/web/server'
+import {media} from '@devvit/web/server'
+import {openAiRequest} from './openai.ts'
 
 export type MediaPlan = {
   needed: boolean
@@ -17,11 +18,19 @@ export function mediaPlan(input: {
   imagePrompt?: string
   body?: string
 }): MediaPlan {
-  if (input.action !== 'POST' || !input.imagePrompt?.trim())
+  const prompt = input.imagePrompt?.trim()
+  if (
+    input.action !== 'POST' ||
+    !prompt ||
+    (input.body?.length ?? 0) < 400 ||
+    !/\b(diagram|framework|map|flow|architecture|system|process|matrix|chart|visual)\b/i.test(
+      prompt,
+    )
+  )
     return {needed: false}
   return {
     needed: true,
-    prompt: input.imagePrompt.trim(),
+    prompt,
     alt: input.body?.slice(0, 180) || 'Generated illustration for Reddit post',
   }
 }
@@ -30,24 +39,19 @@ export async function generateAndUploadImage(
   plan: MediaPlan,
 ): Promise<GeneratedMedia | null> {
   if (!plan.needed || !plan.prompt) return null
-  const key = await settings.get<string>('openai-api-key')
-  if (!key) return null
-
-  const response = await fetch('https://api.openai.com/v1/images/generations', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${key}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'gpt-image-1-mini',
+  const response = await openAiRequest(
+    '/v1/images/generations',
+    {
+      model: 'gpt-image-2',
       prompt: plan.prompt,
       size: '1536x1024',
       quality: 'medium',
       output_format: 'webp',
       n: 1,
-    }),
-  })
+    },
+    {timeoutMs: 120_000, attempts: 2},
+  )
+  if (!response) return null
   if (!response.ok)
     throw new Error(`OpenAI image generation failed: ${response.status}`)
 
@@ -55,6 +59,8 @@ export async function generateAndUploadImage(
     data?: Array<{b64_json?: string; url?: string}>
   }
   const image = result.data?.[0]
+  if (image?.b64_json && image.b64_json.length > 27_000_000)
+    throw new Error('OpenAI image exceeds Reddit media size limit')
   const url = image?.b64_json
     ? `data:image/webp;base64,${image.b64_json}`
     : image?.url

@@ -10,7 +10,12 @@ Where AI generation is enabled, limited Reddit text and verified evidence necess
 
 ## Retention
 
-Operational records are minimised and retained only as long as needed for safety, idempotency, conversation state, relationship learning and audit. Deletion events trigger removal of matching retained content.
+Operational records are minimised. Candidate decisions and recent-content
+checks are retained for up to 30 days; USER queue items for up to 30 days;
+conversation, action-audit and idempotency records for up to 90 days; and
+aggregated relationship safety history for up to 365 days. Daily/hourly budget
+counters expire after two days. Deletion events trigger removal of matching
+retained content and the affected author's relationship record.
 
 ## User actions
 

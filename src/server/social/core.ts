@@ -20,7 +20,7 @@ const current =
   /\b(today|yesterday|breaking|just announced|acquir(?:e|ed|es|ing)|merger|deal value|valued at|raised|funding round|lawsuit|alleg(?:e|ed|ation)|election|candidate|vote|poll)\b/i
 const sales = /\b(dm me|book a call|we can help|contact us|hire us|buy now)\b/i
 const personal =
-  /\b(i|we)\s+(led|advised|acquired|bought|sold|invested|integrated|closed)\b/i
+  /\b(i|we)\s+(led|advised|acquired|bought|sold|invested|integrated|closed|worked|built|delivered|helped|saw|have seen)|\b(my|our)\s+(client|customer|project|deal|transaction|team|experience)\b/i
 const terms: Record<Exclude<Topic, 'human_curiosity'>, RegExp> = {
   technology_ai:
     /\b(ai|automation|software|technology|model|agent|cloud|data|cyber)\b/gi,
@@ -40,7 +40,8 @@ const terms: Record<Exclude<Topic, 'human_curiosity'>, RegExp> = {
 export const isPolitical = (s: string) => political.test(s)
 export const isCurrentClaim = (s: string) => current.test(s)
 export function gateGenerated(s: string, verified = ''): [boolean, string] {
-  if (!s) return [false, 'empty']
+  if (!s?.trim()) return [false, 'empty']
+  if (s.length > 9_000) return [false, 'content too long']
   if (sales.test(s)) return [false, 'automated sales outreach']
   if (personal.test(s) && !verified)
     return [false, 'unverified personal transaction claim']

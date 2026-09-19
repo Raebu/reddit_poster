@@ -9,6 +9,9 @@ export type ActionEnvelope = {
   mediaUrl?: string
   mediaAlt?: string
   identity: 'APP' | 'USER'
+  author?: string
+  topic?: string
+  requestedBy?: {id: string; username: string}
   generatedAt: string
 }
 export type ActionRoute =

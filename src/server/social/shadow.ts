@@ -12,6 +12,7 @@ export type ShadowInput = {
   }
   score?: number
   comments?: number
+  researchVerified?: boolean
 }
 export type ShadowDecision = {
   action: ShadowAction
@@ -36,7 +37,7 @@ export function shadowDecision(input: ShadowInput): ShadowDecision {
       score: 0,
       topic: classifiedTopic,
     }
-  if (isCurrentClaim(text))
+  if (isCurrentClaim(text) && !input.researchVerified)
     return {
       action: 'HOLD',
       reason: 'current claim requires verified research',

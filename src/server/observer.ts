@@ -1,6 +1,8 @@
-import {reddit, redis} from '@devvit/web/server'
+import {randomUUID} from 'node:crypto'
+import {context, reddit, redis} from '@devvit/web/server'
 import {getSocialOsState, setSocialOsState} from './db.ts'
 import {
+  type CommunityProfile,
   communityStage,
   isCurrentClaim,
   isPolitical,
@@ -8,28 +10,24 @@ import {
 } from './social/core.ts'
 import {executeAppAction} from './social/executor.ts'
 import {generateContent} from './social/llm.ts'
-import {mediaPlan} from './social/media.ts'
 import {putConversation, recordRelationship} from './social/memory.ts'
 import {researchClaim} from './social/research.ts'
 import {shadowDecision} from './social/shadow.ts'
 
-const SUBREDDITS = [
-  'technology',
-  'artificial',
-  'MachineLearning',
-  'startups',
-  'Entrepreneur',
-  'private_equity',
-  'venturecapital',
-  'finance',
-  'business',
-  'consulting',
-  'softwarearchitecture',
-]
+const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000
 
 export async function runObserver() {
-  const state = await getSocialOsState()
-  if (!state.enabled) return state
+  const initial = await getSocialOsState()
+  if (!initial.enabled || !context.subredditName) return initial
+
+  const lockKey = 'social-os:observer-lock'
+  const lockToken = randomUUID()
+  await redis.set(lockKey, lockToken, {
+    nx: true,
+    expiration: new Date(Date.now() + 4 * 60_000),
+  })
+  if ((await redis.get(lockKey)) !== lockToken) return initial
+
   let decisions = 0
   let holds = 0
   let noActions = 0
@@ -37,13 +35,11 @@ export async function runObserver() {
   let shadowComments = 0
   let failures = 0
 
-  for (const subredditName of SUBREDDITS) {
+  try {
+    const subredditName = context.subredditName
     try {
       const profileKey = `social-os:community:${subredditName.toLowerCase()}`
-      const raw = await redis.get(profileKey)
-      const profile = raw
-        ? JSON.parse(raw)
-        : {observations: 0, acceptedActions: 0}
+      const profile = parseProfile(await redis.get(profileKey))
       profile.observations += 1
       await redis.set(
         profileKey,
@@ -51,16 +47,18 @@ export async function runObserver() {
       )
 
       const posts = await reddit
-        .getNewPosts({subredditName, limit: 10, pageSize: 10})
+        .getNewPosts({subredditName, limit: 25, pageSize: 25})
         .all()
       for (const post of posts) {
         const seenKey = `social-os:seen:${post.id}`
         if (await redis.get(seenKey)) continue
-        await redis.set(seenKey, '1', {
-          expiration: new Date(Date.now() + 30 * 86400000),
-        })
         const text = `${post.title}\n${post.body ?? ''}`.trim()
-        if (text.length < 80) continue
+        if (text.length < 80) {
+          await redis.set(seenKey, 'short', {
+            expiration: new Date(Date.now() + THIRTY_DAYS),
+          })
+          continue
+        }
         decisions += 1
 
         let decision = 'NO_ACTION'
@@ -69,16 +67,28 @@ export async function runObserver() {
         let draft: string | undefined
         let executed = false
         let redditId: string | undefined
+        const researchRequired = isCurrentClaim(text)
+        let research = {
+          verified: !researchRequired,
+          evidence: [] as Awaited<ReturnType<typeof researchClaim>>['evidence'],
+          reason: researchRequired
+            ? 'research not run in observe mode'
+            : 'research not required',
+        }
 
         if (
-          state.mode === 'SHADOW' ||
-          state.mode === 'CANARY' ||
-          state.mode === 'LIVE'
+          initial.mode === 'SHADOW' ||
+          initial.mode === 'CANARY' ||
+          initial.mode === 'LIVE'
         ) {
+          if (researchRequired) research = await researchClaim(text)
           const shadow = shadowDecision({
             text,
             subreddit: subredditName,
             community: profile,
+            score: post.score,
+            comments: post.numberOfComments,
+            researchVerified: research.verified,
           })
           decision = shadow.action
           reason = shadow.reason
@@ -86,9 +96,6 @@ export async function runObserver() {
           draft = shadow.draft
 
           if (decision === 'COMMENT') {
-            const research = isCurrentClaim(text)
-              ? await researchClaim(text)
-              : {verified: true, evidence: [], reason: 'research not required'}
             const generated = await generateContent({
               text,
               subreddit: subredditName,
@@ -96,10 +103,6 @@ export async function runObserver() {
               evidence: research.evidence,
             })
             if (generated.action === 'COMMENT' && generated.body) {
-              const media = mediaPlan(generated)
-              if (media.needed) {
-                reason = 'media planned but comment media unsupported'
-              }
               const result = await executeAppAction(
                 {
                   idempotencyKey: `comment:${post.id}`,
@@ -108,12 +111,13 @@ export async function runObserver() {
                   subreddit: subredditName,
                   body: generated.body,
                   identity: 'APP',
+                  author: post.authorName,
+                  topic: shadow.topic,
                   generatedAt: new Date().toISOString(),
                 },
                 {
-                  fatigue: 0,
                   moderationRisk: Boolean(profile.banned || profile.modWarning),
-                  researchRequired: isCurrentClaim(text),
+                  researchRequired,
                   researchVerified: research.verified,
                 },
               )
@@ -130,6 +134,7 @@ export async function runObserver() {
                   participants: [post.authorName],
                   lastEventAt: new Date().toISOString(),
                   ourLastActionId: redditId,
+                  replyCount: 0,
                 })
               }
             } else {
@@ -147,7 +152,7 @@ export async function runObserver() {
         } else if (isPolitical(text)) {
           reason = 'political restraint'
           noActions += 1
-        } else if (isCurrentClaim(text)) {
+        } else if (researchRequired) {
           decision = 'HOLD'
           reason = 'current claim requires verified research'
           holds += 1
@@ -159,9 +164,11 @@ export async function runObserver() {
           subreddit: subredditName,
           author: post.authorName,
           topic: topic(text, subredditName),
-          mode: state.mode,
+          mode: initial.mode,
           decision,
           reason,
+          researchReason: research.reason,
+          evidenceCount: research.evidence.length,
           score,
           draft,
           executed,
@@ -170,15 +177,18 @@ export async function runObserver() {
         await redis.set(
           `social-os:decision:${post.id}`,
           JSON.stringify(record),
-          {expiration: new Date(Date.now() + 30 * 86400000)},
+          {expiration: new Date(Date.now() + THIRTY_DAYS)},
         )
-        if (state.mode !== 'OBSERVE' && decision !== 'NO_ACTION') {
+        if (initial.mode !== 'OBSERVE' && decision !== 'NO_ACTION') {
           await redis.set(
             `social-os:shadow:${post.id}`,
             JSON.stringify(record),
-            {expiration: new Date(Date.now() + 30 * 86400000)},
+            {expiration: new Date(Date.now() + THIRTY_DAYS)},
           )
         }
+        await redis.set(seenKey, '1', {
+          expiration: new Date(Date.now() + THIRTY_DAYS),
+        })
       }
       await redis.set(
         profileKey,
@@ -186,21 +196,42 @@ export async function runObserver() {
       )
     } catch (error) {
       failures += 1
-      console.error('observer subreddit failure', subredditName, error)
+      console.error(
+        'observer subreddit failure',
+        context.subredditName,
+        error instanceof Error ? error.message : String(error),
+      )
     }
-  }
 
-  const current = await getSocialOsState()
-  const next = {
-    ...current,
-    decisions: current.decisions + decisions,
-    holds: current.holds + holds,
-    noActions: current.noActions + noActions,
-    shadowProposals: current.shadowProposals + shadowProposals,
-    shadowComments: current.shadowComments + shadowComments,
-    failures: current.failures + failures,
-    lastRunAt: new Date().toISOString(),
+    const current = await getSocialOsState()
+    const next = {
+      ...current,
+      decisions: current.decisions + decisions,
+      holds: current.holds + holds,
+      noActions: current.noActions + noActions,
+      shadowProposals: current.shadowProposals + shadowProposals,
+      shadowComments: current.shadowComments + shadowComments,
+      failures: failures === 0 ? 0 : current.failures + failures,
+      lastRunAt: new Date().toISOString(),
+    }
+    await setSocialOsState(next)
+    return next
+  } finally {
+    if ((await redis.get(lockKey)) === lockToken) await redis.del(lockKey)
   }
-  await setSocialOsState(next)
-  return next
+}
+
+function parseProfile(raw: string | undefined): CommunityProfile {
+  if (!raw) return {observations: 0, acceptedActions: 0}
+  try {
+    const value = JSON.parse(raw) as Partial<CommunityProfile>
+    return {
+      observations: Math.max(0, Number(value.observations) || 0),
+      acceptedActions: Math.max(0, Number(value.acceptedActions) || 0),
+      modWarning: Boolean(value.modWarning),
+      banned: Boolean(value.banned),
+    }
+  } catch {
+    return {observations: 0, acceptedActions: 0}
+  }
 }

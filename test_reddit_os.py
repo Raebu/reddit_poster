@@ -16,7 +16,7 @@ class Tests(unittest.TestCase):
   finally:
    if old:os.environ['SOCIAL_RESEARCH_ENDPOINT']=old
  def test_network_health(self):
-  h=learning.network_health([{'Action':'COMMENT','Author':'a','Topic':'x','Subreddit':'one'},{'Action':'SAVE','Author':'b','Topic':'y','Subreddit':'two'}]);self.assertEqual(h['unique_authors'],2);self.assertEqual(h['unique_subreddits'],2)
+  h=learning.network_health([{'Action':'COMMENT','Author':'a','Topic':'x','Subreddit':'one'},{'Action':'POST','Author':'b','Topic':'y','Subreddit':'two'}]);self.assertEqual(h['unique_authors'],2);self.assertEqual(h['unique_subreddits'],2)
  def test_conversation_closure(self):self.assertEqual(conversation.state('thanks'),'NATURALLY_CLOSED');self.assertFalse(conversation.should_reply('NATURALLY_CLOSED'))
  def test_relationship_progression(self):self.assertEqual(relationships.stage(3,1,0),'RECIPROCAL');self.assertEqual(relationships.stage(12,4,3),'STRONG')
  def test_opportunity_requires_multiple_signals(self):self.assertTrue(opportunities.detect('looking for a technology adviser'));self.assertEqual(opportunities.stage(1),'OBSERVED');self.assertEqual(opportunities.stage(2),'QUALIFIED')
