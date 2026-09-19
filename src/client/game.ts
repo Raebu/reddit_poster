@@ -11,6 +11,11 @@ type Status = {
   noActions: number
   shadowProposals: number
   shadowComments: number
+  canaryActions: number
+  liveActions: number
+  failures: number
+  lastRunAt?: string
+  lastActionAt?: string
 }
 
 const root = document.body
@@ -59,6 +64,12 @@ async function load(): Promise<void> {
       Shadow proposals: ${state.shadowProposals} ·
       Shadow comments: ${state.shadowComments}
     </p>
+    <p>
+      Canary actions: ${state.canaryActions} ·
+      Live actions: ${state.liveActions} ·
+      Failures: ${state.failures}
+    </p>
+    <p><strong>Last hosted run:</strong> ${state.lastRunAt ?? 'Not yet'}</p>
   `
 }
 
