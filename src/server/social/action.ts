@@ -16,7 +16,6 @@ export type ActionRoute =
 
 export function routeAction(envelope: ActionEnvelope): ActionRoute {
   if (!envelope.body.trim()) return {kind: 'BLOCKED', reason: 'empty content'}
-  if (envelope.identity === 'USER')
-    return {kind: 'USER_APPROVAL', envelope}
+  if (envelope.identity === 'USER') return {kind: 'USER_APPROVAL', envelope}
   return {kind: 'AUTONOMOUS_APP', envelope}
 }
