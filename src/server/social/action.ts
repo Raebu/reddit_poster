@@ -6,6 +6,8 @@ export type ActionEnvelope = {
   subreddit: string
   body: string
   title?: string
+  mediaUrl?: string
+  mediaAlt?: string
   identity: 'APP' | 'USER'
   generatedAt: string
 }
