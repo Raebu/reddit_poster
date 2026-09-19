@@ -113,7 +113,9 @@ async function load(): Promise<void> {
   }
 }
 
-for (const button of document.querySelectorAll<HTMLButtonElement>('[data-mode]')) {
+for (const button of document.querySelectorAll<HTMLButtonElement>(
+  '[data-mode]',
+)) {
   button.addEventListener('click', async () => {
     const mode = button.dataset.mode
     if (!mode) return
