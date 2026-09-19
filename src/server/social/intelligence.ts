@@ -27,10 +27,18 @@ export function understandCandidate(
   const saturation = Math.min(1, Math.log10(comments + 1) / 3)
   const question = /\?/.test(candidate.text) ? 0.25 : 0
   const depth = Math.min(0.5, candidate.text.length / 1200)
-  const conversationPotential = Math.min(1, 0.25 + question + depth - saturation * 0.25)
+  const conversationPotential = Math.min(
+    1,
+    0.25 + question + depth - saturation * 0.25,
+  )
   const fatigue = Math.min(
     1,
-    Math.max(recent.author / 2, recent.thread, recent.subreddit / 4, recent.topic / 4),
+    Math.max(
+      recent.author / 2,
+      recent.thread,
+      recent.subreddit / 4,
+      recent.topic / 4,
+    ),
   )
   const novelty = Math.max(0, 1 - fatigue)
   return {saturation, conversationPotential, fatigue, novelty}
