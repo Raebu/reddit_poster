@@ -1,6 +1,6 @@
 import {once} from 'node:events'
 import type {IncomingMessage, ServerResponse} from 'node:http'
-import {context, reddit} from '@devvit/web/server'
+import {reddit} from '@devvit/web/server'
 import type {
   PartialJsonValue,
   TriggerResponse,
