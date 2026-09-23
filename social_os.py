@@ -23,7 +23,7 @@ TABS={
 'Social Entity Graph':['At','Entity ID','Platform','Handle','Type','Relation','Evidence'],
 'Social Usage':['At','Platform','Model Calls','Actions','Pool'],
 'Social Health':['At','Platform','Component','Status','Detail']}
-DEFAULTS={'Reddit Observe Enabled':'TRUE','Reddit Shadow Enabled':'TRUE','Reddit Live Enabled':'FALSE','Reddit Comments Enabled':'FALSE','Reddit Posts Enabled':'FALSE','Reddit Votes Enabled':'FALSE','Reddit Saves Enabled':'FALSE','Research Enabled':'FALSE'}
+DEFAULTS={'Reddit Observe Enabled':'TRUE','Reddit Shadow Enabled':'TRUE','Research Enabled':'FALSE'}
 _BOOK=None;_WS={};_READY=False;_IR=None
 def now():return datetime.datetime.now(datetime.timezone.utc).isoformat()
 def _book():

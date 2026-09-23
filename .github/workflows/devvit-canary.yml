@@ -1,0 +1,29 @@
+name: Devvit Canary Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      subreddit:
+        description: Canary subreddit
+        required: true
+        default: raeburn_social_os_dev
+
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.18.0
+          cache: npm
+      - run: npm ci --no-fund
+      - run: npm test
+      - name: Upload Devvit build
+        env:
+          DEVVIT_AUTH_TOKEN: ${{ secrets.DEVVIT_AUTH_TOKEN }}
+        run: npx devvit upload
+      - name: Install canary
+        env:
+          DEVVIT_AUTH_TOKEN: ${{ secrets.DEVVIT_AUTH_TOKEN }}
+        run: npx devvit install "${{ inputs.subreddit }}"

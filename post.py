@@ -1,10 +1,9 @@
 from __future__ import annotations
 import os,random,re,json
 from openai import OpenAI
-from reddit_api import RedditAPI
 from voice import MARTIN_VOICE
 import social_os,policy,strategy,semantic,resilience
-MODEL=os.getenv('OPENAI_MODEL','gpt-5-mini');DRY=os.getenv('DRY_RUN','true').lower()=='true'
+MODEL=os.getenv('OPENAI_MODEL','gpt-5-mini');DRY=True
 def main():
  topics=strategy.PORTFOLIO[:];random.shuffle(topics);chosen=topics[0];corr='\n'.join(str(x.get('Instruction','')) for x in social_os.corrections()[-20:])
  if not resilience.budget_call():print('HOLD model budget');return
@@ -21,7 +20,5 @@ def main():
  stage=str(profile.get('Stage','UNKNOWN')).upper()
  if stage not in {'UNDERSTOOD','PARTICIPATING','ESTABLISHED'}:return print('HOLD community not understood:',sub,stage)
  print('POST CANDIDATE',sub,title,body,sep='\n')
- if not DRY and social_os.control('Reddit Live Enabled') and social_os.control('Reddit Posts Enabled'):
-  r=resilience.retry(RedditAPI().submit,sub,title,body);cid=str(getattr(r,'id',''));fp=strategy.fingerprint(title+'\n'+body);social_os.lineage(cid,fp,chosen,'',title+'\n'+body);print('PUBLISHED',getattr(r,'permalink',cid))
- social_os.usage(resilience.usage(),0 if DRY else 1,1)
+ social_os.usage(resilience.usage(),0,1)
 if __name__=='__main__':main()

@@ -6,7 +6,7 @@ from openai import OpenAI
 from reddit_api import RedditAPI
 from voice import MARTIN_VOICE
 import social_os,policy,strategy,semantic,resilience,research,community,thread_intelligence,moderation,conversation,relationships,opportunities,discovery
-DRY=os.getenv('DRY_RUN','true').lower()=='true';MODEL=os.getenv('OPENAI_MODEL','gpt-5-mini');MAX_ACTIONS=int(os.getenv('REDDIT_MAX_ACTIONS','3'));MAX_MODEL=int(os.getenv('SOCIAL_MAX_MODEL_CANDIDATES','20'))
+DRY=True;MODEL=os.getenv('OPENAI_MODEL','gpt-5-mini');MAX_ACTIONS=int(os.getenv('REDDIT_MAX_ACTIONS','3'));MAX_MODEL=int(os.getenv('SOCIAL_MAX_MODEL_CANDIDATES','20'))
 SUBREDDITS=[x.strip() for x in os.getenv('REDDIT_SUBREDDITS','technology,artificial,MachineLearning,startups,Entrepreneur,private_equity,venturecapital,finance,business,consulting,softwarearchitecture').split(',') if x.strip()]
 QUERIES=['AI','automation','software','M&A','acquisition','corporate strategy','private equity','venture capital','operating model','digital transformation','technology leadership']
 def ask(prompt):
@@ -33,13 +33,13 @@ def decide(c):
  if policy.current_claim(c['text']):
   ev=research.verify(c['text']) if social_os.control('Research Enabled') else {'verified':False,'reason':'research disabled'}
   if not ev.get('verified'):return 'HOLD','current claim: '+ev.get('reason','unverified')
- prompt=f"Subreddit: r/{c['sub']}\nCommunity stage: {community.stage(c['community_state'])}\nTopic: {c['topic']}\nThread:\n{c['text']}\nChoose exactly one: NO_ACTION, COMMENT, SAVE, UPVOTE. COMMENT only if Martin can add genuinely new substance not already implied by the thread. Prefer restraint. For M&A use at most one or two relevant lenses from: {strategy.ma_lens()}. Never self-promote or claim unverified personal deal experience. Output LABEL then a short reason.";x=ask(prompt);label=x.split()[0].strip(':').upper();return (label if label in {'NO_ACTION','COMMENT','SAVE','UPVOTE'} else 'NO_ACTION'),x[:240]
+ prompt=f"Subreddit: r/{c['sub']}\nCommunity stage: {community.stage(c['community_state'])}\nTopic: {c['topic']}\nThread:\n{c['text']}\nChoose exactly one: NO_ACTION or COMMENT. COMMENT only if Martin can add genuinely new substance not already implied by the thread. Prefer restraint. For M&A use at most one or two relevant lenses from: {strategy.ma_lens()}. Never self-promote or claim unverified personal deal experience. Output LABEL then a short reason.";x=ask(prompt);label=x.split()[0].strip(':').upper();return (label if label in {'NO_ACTION','COMMENT'} else 'NO_ACTION'),x[:240]
 def make_comment(c):
  x=ask(f"Write a Reddit-native comment for this thread:\n{c['text']}\nSubreddit: r/{c['sub']}\nTopic: {c['topic']}\nAdd one genuinely useful distinction, mechanism, trade-off or second-order effect. Do not sound like LinkedIn. No self-promotion, generic praise, canned hook or forced question. Never invent personal experience or current facts. Output comment only or NO_COMMENT.")
  if x.upper().startswith('NO_COMMENT'):return None
  ok,_=policy.gate_generated(x);return x if ok and not semantic.duplicate(x,social_os.recent_texts()) else None
 def main():
- started=datetime.now(timezone.utc).isoformat();api=RedditAPI();print('Authenticated Reddit account:',api.me());pool=observe(api);print('POOL',len(pool));actions=0;authors=Counter();subs=Counter();topics=Counter();live=(not DRY) and social_os.control('Reddit Live Enabled')
+ started=datetime.now(timezone.utc).isoformat();api=RedditAPI();print('Authenticated Reddit account:',api.me());pool=observe(api);print('POOL',len(pool));actions=0;authors=Counter();subs=Counter();topics=Counter()
  for c in pool:
   if actions>=MAX_ACTIONS:break
   if authors[c['author'].lower()]>=1 or subs[c['sub'].lower()]>=2 or topics[c['topic']]>=2:continue
@@ -53,14 +53,7 @@ def main():
   if choice=='COMMENT':
    body=make_comment(c)
    if body and conversation.should_reply('ACTIVE'):
-    if live and social_os.control('Reddit Comments Enabled'):resilience.retry(api.comment,c['id'],body)
     social_os.log_conversation(c['sub'],c['author'],c['id'],'outbound',c['text'][:700],body,'ACTIVE');acted=True
-  elif choice=='SAVE':
-   if live and social_os.control('Reddit Saves Enabled'):resilience.retry(api.save,c['thing'])
-   acted=True
-  elif choice=='UPVOTE':
-   if live and social_os.control('Reddit Votes Enabled'):resilience.retry(api.upvote,c['thing'])
-   acted=True
   if acted:
    actions+=1;authors[c['author'].lower()]+=1;subs[c['sub'].lower()]+=1;topics[c['topic']]+=1;social_os.log_interaction(c['sub'],c['author'],c['id'],choice,reason,DRY,c['topic'],c['fp']);social_os.lineage(c['id'],c['fp'],c['topic'],'',c['text']);social_os.update_relationship(c['author'],c['topic'],reciprocal=False)
   if opportunities.detect(c['text']):print('OPPORTUNITY',c['author'],social_os.opportunity(c['author'],c['text'][:220]))

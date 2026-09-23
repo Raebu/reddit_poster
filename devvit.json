@@ -12,18 +12,61 @@
     }
   },
   "server": {},
+  "settings": {
+    "global": {
+      "openai-api-key": {
+        "type": "string",
+        "label": "OpenAI API key",
+        "isSecret": true
+      },
+      "live-enabled": {
+        "type": "boolean",
+        "label": "Allow LIVE mode after Reddit approval",
+        "defaultValue": false
+      }
+    }
+  },
+  "permissions": {
+    "http": {
+      "enable": true,
+      "domains": ["api.openai.com"]
+    },
+    "media": true,
+    "redis": true,
+    "reddit": {
+      "enable": true,
+      "asUser": ["SUBMIT_POST", "SUBMIT_COMMENT"]
+    }
+  },
   "menu": {
     "items": [
       {
-        "label": "[raeburn-social-os] New Post",
-        "description": "Create a new raeburn-social-os post.",
+        "label": "Raeburn Social OS Console",
+        "description": "Open the Raeburn Social OS console.",
         "location": "subreddit",
         "endpoint": "/internal/on/menu/new-post"
       }
     ]
   },
   "triggers": {
-    "onAppInstall": "/internal/on/app/install"
+    "onAppInstall": "/internal/on/app/install",
+    "onPostCreate": "/internal/on/post-create",
+    "onPostDelete": "/internal/on/post-delete",
+    "onCommentCreate": "/internal/on/comment-create",
+    "onCommentDelete": "/internal/on/comment-delete",
+    "onModAction": "/internal/on/mod-action"
+  },
+  "scheduler": {
+    "tasks": {
+      "reddit-observer": {
+        "endpoint": "/internal/scheduler/observe",
+        "cron": "*/5 * * * *"
+      },
+      "original-post": {
+        "endpoint": "/internal/scheduler/original-post",
+        "cron": "0 10 * * 2,5"
+      }
+    }
   },
   "scripts": {
     "dev": "npm run watch"
