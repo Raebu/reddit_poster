@@ -224,9 +224,11 @@ async function requireModerator(): Promise<void> {
 async function runCanaryTest(): Promise<Record<string, unknown>> {
   const state = await getSocialOsState()
   if (!state.enabled) throw new Error('Social OS is disabled')
-  if (state.mode !== 'CANARY') throw new Error('Canary test requires CANARY mode')
+  if (state.mode !== 'CANARY')
+    throw new Error('Canary test requires CANARY mode')
   if (!context.subredditName) throw new Error('subreddit context required')
-  if (state.canaryActions >= 1) throw new Error('Canary action already completed')
+  if (state.canaryActions >= 1)
+    throw new Error('Canary action already completed')
 
   const generated = await generateContent({
     text: [
@@ -260,7 +262,12 @@ async function runCanaryTest(): Promise<Record<string, unknown>> {
     },
     {moderationRisk: false, researchRequired: false, researchVerified: true},
   )
-  return {executed: result.executed, reason: result.reason, redditId: result.redditId, testPostId: post.id}
+  return {
+    executed: result.executed,
+    reason: result.reason,
+    redditId: result.redditId,
+    testPostId: post.id,
+  }
 }
 
 async function routeMenuNewPost(): Promise<UiResponse> {
