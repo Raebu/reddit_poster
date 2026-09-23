@@ -68,6 +68,7 @@ root.innerHTML = `
       <button id="enable">Enable</button>
       <button id="disable">Kill switch</button>
       <button id="refresh">Refresh</button>
+      <button id="canary-test">Run Canary validation</button>
     </div>
     </section>
 
@@ -193,5 +194,12 @@ document.querySelector('#disable')?.addEventListener('click', async () => {
 })
 
 document.querySelector('#refresh')?.addEventListener('click', () => void load())
+
+document.querySelector('#canary-test')?.addEventListener('click', async () => {
+  if (!window.confirm('Run one controlled Canary validation? This creates one development test post and, if all gates pass, one APP comment.')) return
+  const result = await request<{executed?: boolean; reason?: string}>('/api/social-os/canary-test', {method: 'POST', body: '{}'})
+  window.alert(result.executed ? 'Canary validation succeeded.' : `Canary validation did not execute: ${result.reason ?? 'unknown reason'}`)
+  await load()
+})
 
 void load()
