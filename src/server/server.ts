@@ -239,14 +239,27 @@ async function runCanaryTest(): Promise<Record<string, unknown>> {
     topic: 'technology_ai',
   })
   if (generated.action !== 'COMMENT' || !generated.body)
-    return {executed: false, reason: generated.rationale}
+    return {
+      executed: false,
+      stage: 'generation',
+      reason: generated.rationale,
+    }
 
-  const post = await reddit.submitPost({
+  let post: Awaited<ReturnType<typeof reddit.submitPost>>
+  try {
+    post = await reddit.submitPost({
     subredditName: context.subredditName,
     title: 'Raeburn Social OS — Canary validation',
     text: 'Controlled development-only validation thread for the Social OS Canary execution path.',
-    runAs: 'APP',
-  })
+      runAs: 'APP',
+    })
+  } catch (error) {
+    return {
+      executed: false,
+      stage: 'test-post',
+      reason: error instanceof Error ? error.message : String(error),
+    }
+  }
   const result = await executeAppAction(
     {
       idempotencyKey: 'canary-validation-v1',
@@ -263,6 +276,7 @@ async function runCanaryTest(): Promise<Record<string, unknown>> {
   )
   return {
     executed: result.executed,
+    stage: result.executed ? 'complete' : 'app-comment',
     reason: result.reason,
     redditId: result.redditId,
     testPostId: post.id,
