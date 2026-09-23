@@ -10,9 +10,24 @@ export async function request<T = unknown>(
     },
   })
 
-  if (!response.ok) {
-    throw new Error(`Request failed: ${response.status}`)
+  const raw = await response.text()
+  let payload: unknown
+  try {
+    payload = raw ? JSON.parse(raw) : {}
+  } catch {
+    payload = raw
   }
 
-  return (await response.json()) as T
+  if (!response.ok) {
+    const detail =
+      payload &&
+      typeof payload === 'object' &&
+      'error' in payload &&
+      typeof (payload as {error?: unknown}).error === 'string'
+        ? (payload as {error: string}).error
+        : raw || `HTTP ${response.status}`
+    throw new Error(detail)
+  }
+
+  return payload as T
 }
