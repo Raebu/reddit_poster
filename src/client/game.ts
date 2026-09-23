@@ -46,17 +46,15 @@ root.innerHTML = `
   <main style="
     font-family: system-ui, sans-serif;
     max-width: 820px;
-    margin: 40px auto;
-    padding: 28px;
+    margin: 12px auto;
+    padding: 16px;
+    box-sizing: border-box;
     line-height: 1.5;
   ">
     <h1 style="margin-bottom:4px">Raeburn Social OS</h1>
     <p style="margin-top:0;opacity:.7">Reddit production autonomy console</p>
 
-    <div id="status">Loading…</div>
-
-    <hr style="margin:24px 0">
-
+    <section style="border:2px solid #111;border-radius:12px;padding:14px;margin:16px 0">
     <strong>Autonomy mode</strong>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
       <button data-mode="OBSERVE">Observe</button>
@@ -64,14 +62,18 @@ root.innerHTML = `
       <button data-mode="CANARY">Canary</button>
       <button data-mode="LIVE">Live</button>
     </div>
+    <p style="margin:8px 0 0;opacity:.7;font-size:.9rem">Use Canary for the first real, tightly limited APP action. LIVE stays locked until the Canary gate is satisfied.</p>
 
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
       <button id="enable">Enable</button>
       <button id="disable">Kill switch</button>
       <button id="refresh">Refresh</button>
     </div>
+    </section>
 
-    <hr style="margin:24px 0">
+    <div id="status">Loading…</div>
+
+    <hr style="margin:16px 0">
 
     <strong>USER action queue</strong>
     <div id="queue" style="margin-top:12px">Loading…</div>
