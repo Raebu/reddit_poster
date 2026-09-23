@@ -220,7 +220,6 @@ async function requireModerator(): Promise<void> {
     throw new Error('moderator access required')
 }
 
-
 async function runCanaryTest(): Promise<Record<string, unknown>> {
   const state = await getSocialOsState()
   if (!state.enabled) throw new Error('Social OS is disabled')
