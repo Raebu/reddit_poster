@@ -105,6 +105,9 @@ async function route(
         rsp = await dismissUserAction(req.idempotencyKey)
         break
       }
+      case Endpoint.CanaryTest:
+        rsp = await runCanaryTest()
+        break
       case Endpoint.OnMenuNewPost:
         await requireModerator()
         rsp = await routeMenuNewPost()
@@ -215,6 +218,49 @@ async function requireModerator(): Promise<void> {
     )
   )
     throw new Error('moderator access required')
+}
+
+
+async function runCanaryTest(): Promise<Record<string, unknown>> {
+  const state = await getSocialOsState()
+  if (!state.enabled) throw new Error('Social OS is disabled')
+  if (state.mode !== 'CANARY') throw new Error('Canary test requires CANARY mode')
+  if (!context.subredditName) throw new Error('subreddit context required')
+  if (state.canaryActions >= 1) throw new Error('Canary action already completed')
+
+  const generated = await generateContent({
+    text: [
+      'Canary validation discussion for the Raeburn Social OS.',
+      'How should an autonomous software system balance useful automation, implementation constraints, governance, economics and human oversight?',
+      'Discuss the trade-offs and practical architecture. This is an evergreen engineering test; do not introduce current factual claims.',
+    ].join(' '),
+    subreddit: context.subredditName,
+    topic: 'technology_ai',
+  })
+  if (generated.action !== 'COMMENT' || !generated.body)
+    return {executed: false, reason: generated.rationale}
+
+  const post = await reddit.submitPost({
+    subredditName: context.subredditName,
+    title: 'Raeburn Social OS — Canary validation',
+    text: 'Controlled development-only validation thread for the Social OS Canary execution path.',
+    runAs: 'APP',
+  })
+  const result = await executeAppAction(
+    {
+      idempotencyKey: 'canary-validation-v1',
+      action: 'COMMENT',
+      targetId: post.id,
+      subreddit: context.subredditName,
+      body: generated.body,
+      identity: 'APP',
+      author: 'raeburn-social-os-canary',
+      topic: 'technology_ai',
+      generatedAt: new Date().toISOString(),
+    },
+    {moderationRisk: false, researchRequired: false, researchVerified: true},
+  )
+  return {executed: result.executed, reason: result.reason, redditId: result.redditId, testPostId: post.id}
 }
 
 async function routeMenuNewPost(): Promise<UiResponse> {
