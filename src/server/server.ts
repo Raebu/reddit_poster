@@ -248,9 +248,9 @@ async function runCanaryTest(): Promise<Record<string, unknown>> {
   let post: Awaited<ReturnType<typeof reddit.submitPost>>
   try {
     post = await reddit.submitPost({
-    subredditName: context.subredditName,
-    title: 'Raeburn Social OS — Canary validation',
-    text: 'Controlled development-only validation thread for the Social OS Canary execution path.',
+      subredditName: context.subredditName,
+      title: 'Raeburn Social OS — Canary validation',
+      text: 'Controlled development-only validation thread for the Social OS Canary execution path.',
       runAs: 'APP',
     })
   } catch (error) {
