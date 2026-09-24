@@ -196,8 +196,10 @@ document.querySelector('#disable')?.addEventListener('click', async () => {
 
 document.querySelector('#refresh')?.addEventListener('click', () => void load())
 
-document.querySelector('#canary-test')?.addEventListener('click', async event => {
-  const button = event.currentTarget as HTMLButtonElement
+document
+  .querySelector('#canary-test')
+  ?.addEventListener('click', async event => {
+    const button = event.currentTarget as HTMLButtonElement
   const output = document.querySelector('#canary-result')
   button.disabled = true
   if (output) output.textContent = 'Running Canary validation…'
@@ -219,7 +221,7 @@ document.querySelector('#canary-test')?.addEventListener('click', async event =>
   } finally {
     button.disabled = false
   }
-  await load()
-})
+    await load()
+  })
 
 void load()
