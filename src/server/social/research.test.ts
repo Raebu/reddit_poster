@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {verifyEvidence, type Evidence} from './research.ts'
+import {type Evidence, verifyEvidence} from './research.ts'
 
 const evidence = (
   url: string,
