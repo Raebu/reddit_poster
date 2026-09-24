@@ -15,7 +15,7 @@ export type Topic =
   | 'entrepreneurship_building'
   | 'human_curiosity'
 const political =
-  /\b(election|candidate|vote|voting|party|parliament|president|prime minister|ballot|referendum)\b/i
+  /\b(politic(?:s|al|ian)?|election|candidate|vote|voting|ballot|referendum|campaign|manifesto|constituency|party|parliament|mp|mps|president|prime minister|minister|government|congress|senate|senator|legislator|governor|mayor|democrat(?:ic)?|republican|labour|conservative|liberal democrat)\b/i
 const current =
   /\b(today|yesterday|breaking|just announced|acquir(?:e|ed|es|ing)|merger|deal value|valued at|raised|funding round|lawsuit|alleg(?:e|ed|ation)|election|candidate|vote|poll)\b/i
 const sales = /\b(dm me|book a call|we can help|contact us|hire us|buy now)\b/i
@@ -42,6 +42,7 @@ export const isCurrentClaim = (s: string) => current.test(s)
 export function gateGenerated(s: string, verified = ''): [boolean, string] {
   if (!s?.trim()) return [false, 'empty']
   if (s.length > 9_000) return [false, 'content too long']
+  if (political.test(s)) return [false, 'political content blocked']
   if (sales.test(s)) return [false, 'automated sales outreach']
   if (personal.test(s) && !verified)
     return [false, 'unverified personal transaction claim']
