@@ -196,14 +196,10 @@ document.querySelector('#disable')?.addEventListener('click', async () => {
 
 document.querySelector('#refresh')?.addEventListener('click', () => void load())
 
-document.querySelector('#canary-test')?.addEventListener('click', async () => {
-  if (
-    !window.confirm(
-      'Run one controlled Canary validation? This creates one development test post and, if all gates pass, one APP comment.',
-    )
-  )
-    return
+document.querySelector('#canary-test')?.addEventListener('click', async event => {
+  const button = event.currentTarget as HTMLButtonElement
   const output = document.querySelector('#canary-result')
+  button.disabled = true
   if (output) output.textContent = 'Running Canary validation…'
   try {
     const result = await request<{
@@ -217,11 +213,11 @@ document.querySelector('#canary-test')?.addEventListener('click', async () => {
       ? `Canary validation succeeded. Reddit action: ${result.redditId ?? 'recorded'}`
       : `Canary stopped at ${result.stage ?? 'unknown stage'}: ${result.reason ?? 'unknown reason'}`
     if (output) output.textContent = message
-    window.alert(message)
   } catch (error) {
     const message = `Canary validation error: ${error instanceof Error ? error.message : String(error)}`
     if (output) output.textContent = message
-    window.alert(message)
+  } finally {
+    button.disabled = false
   }
   await load()
 })
