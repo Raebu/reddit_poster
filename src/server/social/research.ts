@@ -30,7 +30,11 @@ function independenceDomain(url: string): string {
 
 export function verifyEvidence(evidence: Evidence[]): ResearchResult {
   const usable = evidence.filter(item => {
-    if (!item.source.trim() || !item.claim.trim() || item.supportsClaim !== true)
+    if (
+      !item.source.trim() ||
+      !item.claim.trim() ||
+      item.supportsClaim !== true
+    )
       return false
     try {
       const url = new URL(item.url)
@@ -40,8 +44,7 @@ export function verifyEvidence(evidence: Evidence[]): ResearchResult {
     }
   })
   const domains = new Set(usable.map(item => independenceDomain(item.url)))
-  const verified =
-    usable.some(item => item.authoritative) || domains.size >= 2
+  const verified = usable.some(item => item.authoritative) || domains.size >= 2
   return {
     verified,
     evidence: usable,
@@ -102,7 +105,8 @@ async function assessClaimSupport(
       })),
     }),
   })
-  if (!response?.ok) return evidence.map(item => ({...item, supportsClaim: false}))
+  if (!response?.ok)
+    return evidence.map(item => ({...item, supportsClaim: false}))
   const json = (await response.json()) as {
     output?: Array<{content?: Array<{type?: string; text?: string}>}>
   }
@@ -110,7 +114,8 @@ async function assessClaimSupport(
     .flatMap(item => item.content ?? [])
     .map(part => part.text ?? '')
     .find(Boolean)
-  if (!outputText) return evidence.map(item => ({...item, supportsClaim: false}))
+  if (!outputText)
+    return evidence.map(item => ({...item, supportsClaim: false}))
   try {
     const parsed = JSON.parse(outputText) as {
       support?: Array<{index?: number; supports?: boolean}>
