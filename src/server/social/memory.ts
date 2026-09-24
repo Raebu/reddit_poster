@@ -94,9 +94,21 @@ export async function purgeContent(id: string): Promise<void> {
       const key = `social-os:user-queue:${queueId}`
       const raw = await redis.get(key)
       if (!raw) continue
-      const item = JSON.parse(raw) as {targetId?: string}
-      if (item.targetId === id) await redis.del(key)
+      const item = JSON.parse(raw) as {targetId?: string; postId?: string}
+      if (item.targetId === id || item.postId === id) {
+        await redis.del(key)
+        await redis.del(`social-os:user-queue:approved:${queueId}`)
+        await redis.del(`social-os:user-queue:dismissed:${queueId}`)
+      }
     }
+    const remaining: string[] = []
+    for (const queueId of index) {
+      if (typeof queueId !== 'string') continue
+      if (await redis.get(`social-os:user-queue:${queueId}`)) remaining.push(queueId)
+    }
+    await redis.set('social-os:user-queue:index', JSON.stringify(remaining), {
+      expiration: expiresInDays(CONVERSATION_RETENTION_DAYS),
+    })
   } catch {
     // Corrupt queue metadata is ignored; content-specific keys above are purged.
   }
