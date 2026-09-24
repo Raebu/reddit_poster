@@ -104,7 +104,8 @@ export async function purgeContent(id: string): Promise<void> {
     const remaining: string[] = []
     for (const queueId of index) {
       if (typeof queueId !== 'string') continue
-      if (await redis.get(`social-os:user-queue:${queueId}`)) remaining.push(queueId)
+      if (await redis.get(`social-os:user-queue:${queueId}`))
+        remaining.push(queueId)
     }
     await redis.set('social-os:user-queue:index', JSON.stringify(remaining), {
       expiration: expiresInDays(CONVERSATION_RETENTION_DAYS),
