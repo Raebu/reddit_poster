@@ -24,7 +24,10 @@ test('policy parity', () => {
   assert.equal(isPolitical('vote for this candidate'), true)
   assert.equal(isPolitical('the prime minister announced a campaign'), true)
   assert.equal(gateGenerated('Vote for this candidate')[0], false)
-  assert.equal(gateGenerated('The government should win the election', 'verified')[0], false)
+  assert.equal(
+    gateGenerated('The government should win the election', 'verified')[0],
+    false,
+  )
 })
 test('community parity', () => {
   assert.equal(communityStage({observations: 0, acceptedActions: 0}), 'UNKNOWN')
