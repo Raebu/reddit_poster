@@ -200,27 +200,27 @@ document
   .querySelector('#canary-test')
   ?.addEventListener('click', async event => {
     const button = event.currentTarget as HTMLButtonElement
-  const output = document.querySelector('#canary-result')
-  button.disabled = true
-  if (output) output.textContent = 'Running Canary validation…'
-  try {
-    const result = await request<{
-      executed?: boolean
-      reason?: string
-      stage?: string
-      redditId?: string
-      testPostId?: string
-    }>('/api/social-os/canary-test', {method: 'POST', body: '{}'})
-    const message = result.executed
-      ? `Canary validation succeeded. Reddit action: ${result.redditId ?? 'recorded'}`
-      : `Canary stopped at ${result.stage ?? 'unknown stage'}: ${result.reason ?? 'unknown reason'}`
-    if (output) output.textContent = message
-  } catch (error) {
-    const message = `Canary validation error: ${error instanceof Error ? error.message : String(error)}`
-    if (output) output.textContent = message
-  } finally {
-    button.disabled = false
-  }
+    const output = document.querySelector('#canary-result')
+    button.disabled = true
+    if (output) output.textContent = 'Running Canary validation…'
+    try {
+      const result = await request<{
+        executed?: boolean
+        reason?: string
+        stage?: string
+        redditId?: string
+        testPostId?: string
+      }>('/api/social-os/canary-test', {method: 'POST', body: '{}'})
+      const message = result.executed
+        ? `Canary validation succeeded. Reddit action: ${result.redditId ?? 'recorded'}`
+        : `Canary stopped at ${result.stage ?? 'unknown stage'}: ${result.reason ?? 'unknown reason'}`
+      if (output) output.textContent = message
+    } catch (error) {
+      const message = `Canary validation error: ${error instanceof Error ? error.message : String(error)}`
+      if (output) output.textContent = message
+    } finally {
+      button.disabled = false
+    }
     await load()
   })
 
